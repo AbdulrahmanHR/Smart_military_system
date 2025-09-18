@@ -20,8 +20,8 @@ class Config:
     # API Configuration
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
     
-    # Model Configuration
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    # Model Configuration (Arabic-supporting defaults)
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
     LLM_MODEL = os.getenv("LLM_MODEL", "gemini-1.5-flash")
     
     # RAG Configuration
@@ -42,7 +42,7 @@ class Config:
     PAGE_ICON = os.getenv("PAGE_ICON", "⚔️")
     LAYOUT = os.getenv("LAYOUT", "wide")
     
-    # Training Categories
+    # Training Categories (English and Arabic)
     TRAINING_CATEGORIES = [
         "All Categories",
         "Tactical Procedures",
@@ -54,6 +54,23 @@ class Config:
         "Communication Protocols",
         "Mission Planning"
     ]
+    
+    # Arabic Training Categories
+    TRAINING_CATEGORIES_AR = [
+        "جميع الفئات",
+        "الإجراءات التكتيكية",
+        "تدريب المعدات",
+        "بروتوكولات الطوارئ", 
+        "القيادة والتنسيق",
+        "التدريب البدني",
+        "إجراءات السلامة",
+        "بروتوكولات الاتصال",
+        "تخطيط المهام"
+    ]
+    
+    # Language settings
+    SUPPORTED_LANGUAGES = ["en", "ar"]
+    DEFAULT_LANGUAGE = "en"
     
     @classmethod
     def ensure_directories(cls):

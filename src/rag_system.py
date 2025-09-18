@@ -1,7 +1,8 @@
 """
-RAG (Retrieval-Augmented Generation) system for military training chatbot
+RAG (Retrieval-Augmented Generation) system for military training chatbot with Arabic support
 """
 import logging
+import re
 from typing import List, Dict, Any, Optional, Tuple
 
 from langchain_core.documents import Document as LangchainDocument
@@ -17,13 +18,36 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MilitaryTrainingRAG:
-    """RAG system specialized for military training scenarios"""
+    """RAG system specialized for military training scenarios with Arabic support"""
     
     def __init__(self):
         self.vector_db = VectorDatabase()
         self.llm = self._initialize_llm()
-        self.prompt_template = self._create_prompt_template()
+        self.prompt_template_en = self._create_prompt_template_en()
+        self.prompt_template_ar = self._create_prompt_template_ar()
         self.rag_chain = self._create_rag_chain()
+    
+    def detect_query_language(self, query: str) -> str:
+        """Detect the language of the user query"""
+        if not query:
+            return "en"
+        
+        # Count Arabic characters
+        arabic_chars = len(re.findall(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', query))
+        english_chars = len(re.findall(r'[a-zA-Z]', query))
+        total_chars = len(query.strip())
+        
+        if total_chars == 0:
+            return "en"
+        
+        arabic_ratio = arabic_chars / total_chars
+        english_ratio = english_chars / total_chars
+        
+        # If more than 10% Arabic characters, consider it Arabic
+        if arabic_ratio > 0.1 and arabic_ratio > english_ratio:
+            return "ar"
+        else:
+            return "en"
     
     def _initialize_llm(self) -> ChatGoogleGenerativeAI:
         """Initialize Google Gemini LLM"""
@@ -40,8 +64,8 @@ class MilitaryTrainingRAG:
             logger.error(f"Error initializing LLM: {e}")
             raise
     
-    def _create_prompt_template(self) -> ChatPromptTemplate:
-        """Create the PTCF (Persona-Task-Context-Format) prompt template"""
+    def _create_prompt_template_en(self) -> ChatPromptTemplate:
+        """Create the English PTCF (Persona-Task-Context-Format) prompt template"""
         
         system_prompt = """
 You are a seasoned Military Training Instructor with extensive experience across multiple domains of military operations. You possess the expertise of a tactical training specialist and maintain the professional bearing of a military education officer, while remaining approachable, patient, and committed to soldier development.
@@ -83,6 +107,49 @@ Provide a comprehensive, authoritative response based on the retrieved training 
         
         return ChatPromptTemplate.from_template(system_prompt)
     
+    def _create_prompt_template_ar(self) -> ChatPromptTemplate:
+        """Create the Arabic prompt template"""
+        
+        system_prompt = """
+أنت مدرب عسكري متمرس ذو خبرة واسعة في مختلف مجالات العمليات العسكرية. تتمتع بخبرة أخصائي التدريب التكتيكي وتحافظ على السلوك المهني لضابط التعليم العسكري، مع البقاء ودودًا وصبورًا وملتزمًا بتطوير الجنود.
+
+## مهمتك
+مهمتك الأساسية هي تقديم توجيهات شاملة للتدريب العسكري والإجابة على الأسئلة حول الإجراءات والتكتيكات والبروتوكولات العسكرية. يجب عليك:
+- تحليل سيناريوهات التدريب وتقديم التوجيه التكتيكي خطوة بخطوة
+- تبسيط المفاهيم العسكرية المعقدة للجنود في مختلف مستويات الخبرة
+- تقديم نصائح عملية وقابلة للتطبيق بناءً على العقيدة العسكرية المعتمدة
+- تقييم فهم المتدربين واقتراح موارد تدريبية إضافية
+- التركيز حصريًا على التدريب والتعليم، وليس التخطيط التشغيلي أو المعلومات المصنفة
+
+## السياق التشغيلي
+أنت تعمل في بيئة تعليم عسكري مهنية، تخدم الجنود في مختلف مستويات الخبرة والتخصص. استجاباتك مبنية على قاعدة معرفية شاملة من أدلة التدريب العسكري وإجراءات التشغيل القياسية والمبادئ التوجيهية التكتيكية. يجب عليك:
+- إعطاء الأولوية للمعلومات من وثائق التدريب العسكري المسترجعة على المعرفة العامة
+- مراعاة التطبيق في العالم الواقعي والسلامة في جميع التوصيات
+- التركيز على مواد ووإجراءات التدريب القياسية وغير المصنفة
+- الحفاظ على الوعي الظرفي المناسب لبيئات التدريب
+
+## صيغة الاستجابة والبروتوكولات
+اهيكل إجاباتك بدقة عسكرية ووضوح تعليمي:
+- قدم إجابات واضحة ومنظمة مع تدفق منطقي
+- استخدم المصطلحات العسكرية المهنية متوازنة مع الشروحات التعليمية
+- صيغ الإجراءات كنقاط نقطية، والتسلسلات كقوائم مرقمة
+- أبرز المعلومات الهامة بالخط العريض
+- اذكر دائمًا المصادر المتاحة بهذا التنسيق: [المصدر: اسم الوثيقة]
+- عندما لا توجد مواد تدريبية ذات صلة في قاعدة المعرفة، اذكر هذا القيد بوضوح
+- أوصِ بالتشاور مع المدربين البشريين أو القنوات الرسمية للمسائل التشغيلية المعقدة
+
+## السياق المتاح
+{context}
+
+## سؤال الجندي
+{question}
+
+## استجابتك
+قدم استجابة شاملة وموثوقة بناءً على مواد التدريب المسترجعة. قم بتضمين مراجع محددة لوثائق المصدر وحافظ على معايير الاتصال العسكري المهني مع ضمان القيمة التعليمية.
+"""
+        
+        return ChatPromptTemplate.from_template(system_prompt)
+    
     def _format_retrieved_documents(self, docs: List[LangchainDocument]) -> str:
         """Format retrieved documents for context injection"""
         if not docs:
@@ -102,12 +169,15 @@ Document {i} - {source} (Category: {category}):
         return "\n".join(formatted_context)
     
     def _create_rag_chain(self):
-        """Create the RAG chain for processing queries"""
+        """Create the RAG chain for processing queries with language detection"""
         
-        def retrieve_documents(query_dict):
-            """Retrieve relevant documents based on query"""
+        def retrieve_and_process(query_dict):
+            """Retrieve relevant documents and determine language"""
             query = query_dict.get("question", "")
             category_filter = query_dict.get("category_filter")
+            
+            # Detect query language
+            detected_lang = self.detect_query_language(query)
             
             docs = self.vector_db.similarity_search(
                 query, 
@@ -115,22 +185,44 @@ Document {i} - {source} (Category: {category}):
                 category_filter=category_filter
             )
             
+            # Format context with language awareness
+            if detected_lang == "ar":
+                context = self._format_retrieved_documents_ar(docs)
+            else:
+                context = self._format_retrieved_documents(docs)
+            
             return {
-                "context": self._format_retrieved_documents(docs),
+                "context": context,
                 "question": query,
-                "retrieved_docs": docs
+                "retrieved_docs": docs,
+                "language": detected_lang
             }
         
-        # Create the RAG chain
+        # Create the RAG chain without the broken select_prompt_template
         chain = (
             RunnablePassthrough() |
-            retrieve_documents |
-            self.prompt_template |
-            self.llm |
-            StrOutputParser()
+            retrieve_and_process
         )
         
         return chain
+    
+    def _format_retrieved_documents_ar(self, docs: List[LangchainDocument]) -> str:
+        """Format retrieved documents for Arabic context injection"""
+        if not docs:
+            return "لم يتم العثور على مواد تدريبية ذات صلة في قاعدة المعرفة."
+        
+        formatted_context = []
+        for i, doc in enumerate(docs, 1):
+            source = doc.metadata.get('filename', 'وثيقة غير معروفة')
+            category = doc.metadata.get('category', 'عام')
+            content = doc.page_content.strip()
+            
+            formatted_context.append(f"""
+الوثيقة {i} - {source} (الفئة: {category}):
+{content}
+""")
+        
+        return "\n".join(formatted_context)
     
     def query(
         self, 
@@ -138,9 +230,12 @@ Document {i} - {source} (Category: {category}):
         category_filter: Optional[str] = None,
         return_sources: bool = True
     ) -> Dict[str, Any]:
-        """Process a training query and return response with sources"""
+        """Process a training query with Arabic support and return response with sources"""
         try:
             logger.info(f"Processing query: {question[:100]}...")
+            
+            # Detect query language
+            detected_lang = self.detect_query_language(question)
             
             # Prepare input for the chain
             chain_input = {
@@ -148,15 +243,28 @@ Document {i} - {source} (Category: {category}):
                 "category_filter": category_filter
             }
             
-            # Get retrieved documents first for source information
+            # Get processed data from RAG chain
+            processed_data = self.rag_chain.invoke(chain_input)
+            
+            # Select appropriate prompt template based on language
+            if detected_lang == "ar":
+                prompt_template = self.prompt_template_ar
+            else:
+                prompt_template = self.prompt_template_en
+            
+            # Generate response using the appropriate template
+            prompt = prompt_template.format(
+                context=processed_data["context"],
+                question=question
+            )
+            response = self.llm.invoke(prompt)
+            
+            # Get retrieved documents for source information
             retrieved_docs = self.vector_db.similarity_search_with_score(
                 question,
                 k=config.RETRIEVAL_K,
                 category_filter=category_filter
             )
-            
-            # Generate response using the RAG chain
-            response = self.rag_chain.invoke(chain_input)
             
             # Prepare source information
             sources = []
@@ -165,24 +273,31 @@ Document {i} - {source} (Category: {category}):
                     sources.append({
                         "filename": doc.metadata.get('filename', 'Unknown'),
                         "category": doc.metadata.get('category', 'General'),
+                        "language": doc.metadata.get('language', 'en'),
                         "similarity_score": float(score),
                         "content_preview": doc.page_content[:200] + "..."
                     })
             
             return {
-                "response": response,
+                "response": response.content if hasattr(response, 'content') else str(response),
                 "sources": sources,
                 "query": question,
+                "detected_language": detected_lang,
                 "category_filter": category_filter,
                 "num_sources": len(sources)
             }
             
         except Exception as e:
             logger.error(f"Error processing query: {e}")
+            error_msg = ("أعتذر، لقد واجهت خطأ في معالجة سؤالك. يرجى المحاولة مرة أخرى أو إعادة صياغة استفسارك." 
+                        if self.detect_query_language(question) == "ar" 
+                        else "I apologize, but I encountered an error processing your question. Please try again or rephrase your query.")
+            
             return {
-                "response": "I apologize, but I encountered an error processing your question. Please try again or rephrase your query.",
+                "response": error_msg,
                 "sources": [],
                 "query": question,
+                "detected_language": self.detect_query_language(question),
                 "category_filter": category_filter,
                 "num_sources": 0,
                 "error": str(e)

@@ -25,35 +25,40 @@ class VectorDatabase:
         self._initialize_database()
     
     def _initialize_embeddings(self):
-        """Initialize HuggingFace embeddings with proper device handling"""
+        """Initialize HuggingFace embeddings with Arabic and multilingual support"""
         try:
-            # Use device_map="cpu" to avoid GPU/device issues
-            # and set trust_remote_code=True for newer models
-            embeddings = HuggingFaceEmbeddings(
-                model_name=config.EMBEDDING_MODEL,
-                model_kwargs={
-                    'device': 'cpu',
-                    'trust_remote_code': True
-                },
-                encode_kwargs={
-                    'normalize_embeddings': True
-                }
-            )
-            logger.info(f"Initialized embeddings model: {config.EMBEDDING_MODEL}")
-            return embeddings
+            # Priority list of Arabic-supporting embedding models
+            arabic_models = [
+                config.EMBEDDING_MODEL,
+                "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",  # Supports Arabic
+                "sentence-transformers/distiluse-base-multilingual-cased",      # Supports Arabic
+                "sentence-transformers/LaBSE",                                  # Language-agnostic model
+                "sentence-transformers/all-MiniLM-L6-v2"                       # Fallback
+            ]
+            
+            for model_name in arabic_models:
+                try:
+                    embeddings = HuggingFaceEmbeddings(
+                        model_name=model_name,
+                        model_kwargs={
+                            'device': 'cpu',
+                            'trust_remote_code': True
+                        },
+                        encode_kwargs={
+                            'normalize_embeddings': True
+                        }
+                    )
+                    logger.info(f"Successfully initialized Arabic-supporting embeddings: {model_name}")
+                    return embeddings
+                except Exception as model_error:
+                    logger.warning(f"Failed to initialize {model_name}: {model_error}")
+                    continue
+            
+            raise Exception("All Arabic-supporting embedding models failed to initialize")
+            
         except Exception as e:
-            logger.error(f"Error initializing embeddings: {e}")
-            # Fallback to a simpler initialization
-            try:
-                embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2",
-                    model_kwargs={'device': 'cpu'}
-                )
-                logger.info("Initialized with fallback embedding model")
-                return embeddings
-            except Exception as fallback_error:
-                logger.error(f"Fallback embedding initialization also failed: {fallback_error}")
-                raise
+            logger.error(f"Error initializing Arabic embeddings: {e}")
+            raise
     
     def _initialize_database(self):
         """Initialize Chroma database with persistent storage"""

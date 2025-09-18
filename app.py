@@ -20,58 +20,110 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Minimal CSS styling
+# CSS styling with Arabic support
 st.markdown("""
 <style>
     .stChatMessage {
         margin-bottom: 1rem;
     }
+    
+    /* Arabic text support */
+    .arabic-text {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Arial', 'Tahoma', 'Microsoft Sans Serif', sans-serif;
+    }
+    
+    /* Language selector styling */
+    .language-selector {
+        margin-bottom: 1rem;
+    }
+    
+    /* RTL support for Arabic interface */
+    .rtl {
+        direction: rtl;
+        text-align: right;
+    }
+    
+    /* Better Arabic font rendering */
+    .stSelectbox > div > div {
+        font-family: 'Arial', 'Tahoma', sans-serif;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 def initialize_session_state():
-    """Initialize Streamlit session state variables"""
+    """Initialize Streamlit session state variables with Arabic support"""
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
     
+    if "ui_language" not in st.session_state:
+        st.session_state.ui_language = "en"
+    
     if "rag_system" not in st.session_state:
-        with st.spinner("Initializing Military Training Assistant..."):
+        init_msg = ("تهيئة مساعد التدريب العسكري..." if st.session_state.ui_language == "ar" 
+                   else "Initializing Military Training Assistant...")
+        success_msg = ("✅ تم تهيئة النظام بنجاح!" if st.session_state.ui_language == "ar" 
+                      else "✅ System initialized successfully!")
+        error_msg = ("❌ فشل في تهيئة النظام" if st.session_state.ui_language == "ar" 
+                    else "❌ Failed to initialize system")
+        
+        with st.spinner(init_msg):
             try:
                 st.session_state.rag_system = MilitaryTrainingRAG()
-                st.success("✅ System initialized successfully!")
+                st.success(success_msg)
             except Exception as e:
-                st.error(f"❌ Failed to initialize system: {e}")
+                st.error(f"{error_msg}: {e}")
                 st.stop()
-    
     
     if "selected_category" not in st.session_state:
         st.session_state.selected_category = "All Categories"
 
 def display_header():
-    """Display the main application header"""
-    st.title("⚔️ Military Training Assistant")
-    st.caption("AI-Powered Training Support")
+    """Display the main application header with language support"""
+    if st.session_state.ui_language == "ar":
+        st.markdown('<div class="rtl">', unsafe_allow_html=True)
+        st.title("⚔️ مساعد التدريب العسكري")
+        st.caption("دعم التدريب بالذكاء الاصطناعي")
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.title("⚔️ Military Training Assistant")
+        st.caption("AI-Powered Training Support")
 
 def display_chat_interface():
-    """Display the main chat interface using Streamlit's native chat components"""
-    st.subheader("💬 Training Discussion")
+    """Display the main chat interface with Arabic support"""
+    if st.session_state.ui_language == "ar":
+        st.markdown('<div class="rtl">', unsafe_allow_html=True)
+        st.subheader("💬 مناقشة التدريب")
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.subheader("💬 Training Discussion")
     
     # Display chat history using Streamlit's chat message component
     for message in st.session_state.chat_history:
         with st.chat_message(message["role"]):
-            st.write(message["content"])
+            # Detect if message content is Arabic and apply RTL styling
+            content = message["content"]
+            if any('\u0600' <= char <= '\u06FF' for char in content):
+                st.markdown(f'<div class="arabic-text">{content}</div>', unsafe_allow_html=True)
+            else:
+                st.write(content)
             st.caption(f"⏰ {message['timestamp']}")
             
             # Display sources if available (for assistant messages)
             if message["role"] == "assistant" and "sources" in message and message["sources"]:
-                with st.expander(f"📚 Sources ({len(message['sources'])})", expanded=False):
+                sources_label = f"📚 المصادر ({len(message['sources'])})" if st.session_state.ui_language == "ar" else f"📚 Sources ({len(message['sources'])})"
+                with st.expander(sources_label, expanded=False):
                     for source in message["sources"]:
-                        st.caption(f"• {source['filename']}")
+                        language_flag = "🇸🇦" if source.get('language') == 'ar' else "🇬🇧"
+                        st.caption(f"• {language_flag} {source['filename']}")
 
 def handle_user_input():
-    """Handle user input and generate responses"""
-    # User input
-    user_input = st.chat_input("Ask your military training question here...")
+    """Handle user input and generate responses with Arabic support"""
+    # User input with language-appropriate placeholder
+    placeholder = ("اسأل سؤالك حول التدريب العسكري هنا..." if st.session_state.ui_language == "ar" 
+                  else "Ask your military training question here...")
+    user_input = st.chat_input(placeholder)
     
     if user_input:
         # Add user message to history
@@ -82,8 +134,10 @@ def handle_user_input():
             "timestamp": timestamp
         })
         
-        # Generate response
-        with st.spinner("🤔 Analyzing training materials..."):
+        # Generate response with language-appropriate messages
+        spinner_msg = ("🤔 تحليل مواد التدريب..." if st.session_state.ui_language == "ar" 
+                      else "🤔 Analyzing training materials...")
+        with st.spinner(spinner_msg):
             try:
                 response_data = st.session_state.rag_system.query(
                     question=user_input,
@@ -100,10 +154,14 @@ def handle_user_input():
                 })
                 
             except Exception as e:
-                st.error(f"Error generating response: {e}")
+                error_msg = f"خطأ في توليد الإجابة: {e}" if st.session_state.ui_language == "ar" else f"Error generating response: {e}"
+                st.error(error_msg)
+                
+                fallback_msg = ("أعتذر، واجهت خطأ في معالجة سؤالك. يرجى المحاولة مرة أخرى." if st.session_state.ui_language == "ar" 
+                               else "I apologize, but I encountered an error processing your question. Please try again.")
                 st.session_state.chat_history.append({
                     "role": "assistant",
-                    "content": "I apologize, but I encountered an error processing your question. Please try again.",
+                    "content": fallback_msg,
                     "timestamp": timestamp
                 })
         
@@ -111,35 +169,86 @@ def handle_user_input():
         st.rerun()
 
 def display_sidebar():
-    """Display simplified sidebar with essential controls only"""
+    """Display sidebar with language selection and essential controls"""
     with st.sidebar:
-        st.subheader("🎯 Controls")
-        
-        # Category selection
-        st.session_state.selected_category = st.selectbox(
-            "Training Category",
-            config.TRAINING_CATEGORIES,
-            index=config.TRAINING_CATEGORIES.index(st.session_state.selected_category)
+        # Language selection
+        language_options = {"English": "en", "العربية": "ar"}
+        selected_lang = st.selectbox(
+            "Language / اللغة",
+            options=list(language_options.keys()),
+            index=0 if st.session_state.ui_language == "en" else 1,
+            key="language_selector"
         )
         
-        # Chat management
-        if st.button("🗑️ Clear Chat"):
-            st.session_state.chat_history = []
+        # Update UI language
+        new_language = language_options[selected_lang]
+        if new_language != st.session_state.ui_language:
+            st.session_state.ui_language = new_language
             st.rerun()
+        
+        # Localized headers
+        if st.session_state.ui_language == "ar":
+            st.markdown('<div class="rtl">', unsafe_allow_html=True)
+            st.subheader("🎯 عناصر التحكم")
+            
+            # Category selection in Arabic
+            category_options = dict(zip(config.TRAINING_CATEGORIES, config.TRAINING_CATEGORIES_AR))
+            selected_ar_category = st.selectbox(
+                "فئة التدريب",
+                options=list(category_options.values()),
+                index=list(category_options.keys()).index(st.session_state.selected_category)
+            )
+            # Map back to English for backend processing
+            st.session_state.selected_category = list(category_options.keys())[list(category_options.values()).index(selected_ar_category)]
+            
+            # Chat management in Arabic
+            if st.button("🗑️ مسح المحادثة"):
+                st.session_state.chat_history = []
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.subheader("🎯 Controls")
+            
+            # Category selection in English
+            st.session_state.selected_category = st.selectbox(
+                "Training Category",
+                config.TRAINING_CATEGORIES,
+                index=config.TRAINING_CATEGORIES.index(st.session_state.selected_category)
+            )
+            
+            # Chat management in English
+            if st.button("🗑️ Clear Chat"):
+                st.session_state.chat_history = []
+                st.rerun()
 
 
 def display_welcome_message():
-    """Display welcome message and instructions"""
+    """Display welcome message and instructions with language support"""
     if not st.session_state.chat_history:
-        st.markdown("""
-        ### 🎖️ Welcome to the Military Training Assistant
-        
-        I'm here to help with military training questions covering tactics, equipment, protocols, and more.
-        
-        **How to use:** Select a category (optional) and ask your question below.
-        
-        **Example:** "What are the procedures for establishing a defensive perimeter?"
-        """)
+        if st.session_state.ui_language == "ar":
+            st.markdown("""
+            <div class="rtl arabic-text">
+            
+            ### 🎖️ مرحباً بك في مساعد التدريب العسكري
+            
+            أنا هنا لمساعدتك في أسئلة التدريب العسكري التي تغطي التكتيكات والمعدات والبروتوكولات وأكثر.
+            
+            **كيفية الاستخدام:** اختر فئة (اختياري) واسأل سؤالك أدناه.
+            
+            **مثال:** "ما هي إجراءات إنشاء محيط دفاعي؟"
+            
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            ### 🎖️ Welcome to the Military Training Assistant
+            
+            I'm here to help with military training questions covering tactics, equipment, protocols, and more.
+            
+            **How to use:** Select a category (optional) and ask your question below.
+            
+            **Example:** "What are the procedures for establishing a defensive perimeter?"
+            """)
 
 def main():
     """Main application function"""
@@ -150,8 +259,12 @@ def main():
     try:
         config.validate_config()
     except ValueError as e:
-        st.error(f"Configuration Error: {e}")
-        st.info("Please check your .env file and ensure GOOGLE_API_KEY is set")
+        if st.session_state.ui_language == "ar":
+            st.error(f"خطأ في التكوين: {e}")
+            st.info("يرجى التحقق من ملف .env والتأكد من تعيين GOOGLE_API_KEY")
+        else:
+            st.error(f"Configuration Error: {e}")
+            st.info("Please check your .env file and ensure GOOGLE_API_KEY is set")
         st.stop()
     
     # Display header

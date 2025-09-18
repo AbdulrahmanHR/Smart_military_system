@@ -3,8 +3,9 @@ Document processing module for military training documents
 """
 import os
 import logging
+import re
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import PyPDF2
 from docx import Document
@@ -17,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DocumentProcessor:
-    """Handles document ingestion, processing, and chunking for military training materials"""
+    """Handles document ingestion, processing, and chunking for military training materials with Arabic support"""
     
     def __init__(self):
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -26,6 +27,42 @@ class DocumentProcessor:
             length_function=len,
             separators=["\n\n", "\n", " ", ""]
         )
+        
+        # Arabic category keywords mapping
+        self.arabic_category_keywords = {
+            "Tactical Procedures": {
+                "en": ['tactical', 'combat', 'strategy', 'maneuver', 'tactics'],
+                "ar": ['تكتيكي', 'قتال', 'استراتيجية', 'مناورة', 'تكتيكات', 'خطة', 'هجوم', 'دفاع']
+            },
+            "Equipment Training": {
+                "en": ['equipment', 'weapon', 'gear', 'maintenance', 'tools'],
+                "ar": ['معدات', 'سلاح', 'أدوات', 'صيانة', 'تجهيزات', 'آلات', 'أسلحة']
+            },
+            "Emergency Protocols": {
+                "en": ['emergency', 'crisis', 'evacuation', 'medical', 'urgent'],
+                "ar": ['طوارئ', 'أزمة', 'إخلاء', 'طبي', 'عاجل', 'إسعاف', 'حالة طارئة']
+            },
+            "Leadership & Coordination": {
+                "en": ['leadership', 'command', 'coordination', 'team', 'management'],
+                "ar": ['قيادة', 'قائد', 'تنسيق', 'فريق', 'إدارة', 'تعاون', 'ضابط']
+            },
+            "Physical Training": {
+                "en": ['physical', 'fitness', 'training', 'exercise', 'conditioning'],
+                "ar": ['بدني', 'لياقة', 'تدريب', 'تمرين', 'رياضة', 'تكييف', 'قوة']
+            },
+            "Safety Procedures": {
+                "en": ['safety', 'security', 'protection', 'risk', 'precaution'],
+                "ar": ['أمان', 'أمن', 'حماية', 'خطر', 'احتياط', 'وقاية', 'سلامة']
+            },
+            "Communication Protocols": {
+                "en": ['communication', 'radio', 'signal', 'intel', 'transmission'],
+                "ar": ['اتصال', 'راديو', 'إشارة', 'استخبارات', 'إرسال', 'لاسلكي', 'تواصل']
+            },
+            "Mission Planning": {
+                "en": ['mission', 'planning', 'operation', 'briefing', 'objective'],
+                "ar": ['مهمة', 'تخطيط', 'عملية', 'إحاطة', 'هدف', 'خطة عمل', 'مهام']
+            }
+        }
     
     def extract_text_from_pdf(self, file_path: Path) -> str:
         """Extract text from PDF files"""
@@ -53,45 +90,86 @@ class DocumentProcessor:
             return ""
     
     def extract_text_from_txt(self, file_path: Path) -> str:
-        """Extract text from plain text files"""
+        """Extract text from plain text files with enhanced Arabic support"""
         try:
+            # Try UTF-8 first (preferred for Arabic)
             with open(file_path, 'r', encoding='utf-8') as file:
                 return file.read()
+        except UnicodeDecodeError:
+            # Fallback to other encodings that might contain Arabic
+            for encoding in ['utf-16', 'cp1256', 'iso-8859-6']:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as file:
+                        content = file.read()
+                        logger.info(f"Successfully read {file_path} with encoding: {encoding}")
+                        return content
+                except (UnicodeDecodeError, UnicodeError):
+                    continue
+            logger.error(f"Could not decode {file_path} with any supported encoding")
+            return ""
         except Exception as e:
             logger.error(f"Error reading TXT {file_path}: {e}")
             return ""
     
+    def detect_language(self, text: str) -> str:
+        """Simple language detection for Arabic vs English text"""
+        if not text:
+            return "en"
+        
+        # Count Arabic characters
+        arabic_chars = len(re.findall(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', text))
+        english_chars = len(re.findall(r'[a-zA-Z]', text))
+        total_chars = len(text.strip())
+        
+        if total_chars == 0:
+            return "en"
+        
+        arabic_ratio = arabic_chars / total_chars
+        english_ratio = english_chars / total_chars
+        
+        # If more than 10% Arabic characters, consider it Arabic
+        if arabic_ratio > 0.1 and arabic_ratio > english_ratio:
+            return "ar"
+        else:
+            return "en"
+    
     def determine_document_category(self, filename: str, content: str) -> str:
-        """Determine document category based on filename and content"""
+        """Determine document category based on filename and content with Arabic support"""
         filename_lower = filename.lower()
         content_lower = content.lower()
         
-        if any(keyword in filename_lower or keyword in content_lower 
-               for keyword in ['tactical', 'combat', 'strategy', 'maneuver']):
-            return "Tactical Procedures"
-        elif any(keyword in filename_lower or keyword in content_lower 
-                 for keyword in ['equipment', 'weapon', 'gear', 'maintenance']):
-            return "Equipment Training"
-        elif any(keyword in filename_lower or keyword in content_lower 
-                 for keyword in ['emergency', 'crisis', 'evacuation', 'medical']):
-            return "Emergency Protocols"
-        elif any(keyword in filename_lower or keyword in content_lower 
-                 for keyword in ['leadership', 'command', 'coordination', 'team']):
-            return "Leadership & Coordination"
-        elif any(keyword in filename_lower or keyword in content_lower 
-                 for keyword in ['physical', 'fitness', 'training', 'exercise']):
-            return "Physical Training"
-        elif any(keyword in filename_lower or keyword in content_lower 
-                 for keyword in ['safety', 'security', 'protection', 'risk']):
-            return "Safety Procedures"
-        elif any(keyword in filename_lower or keyword in content_lower 
-                 for keyword in ['communication', 'radio', 'signal', 'intel']):
-            return "Communication Protocols"
-        elif any(keyword in filename_lower or keyword in content_lower 
-                 for keyword in ['mission', 'planning', 'operation', 'briefing']):
-            return "Mission Planning"
-        else:
-            return "General Training"
+        # Detect primary language of content
+        detected_lang = self.detect_language(content)
+        
+        # Score each category based on keyword matches
+        category_scores = {}
+        
+        for category, keywords in self.arabic_category_keywords.items():
+            score = 0
+            
+            # Check English keywords
+            for keyword in keywords["en"]:
+                if keyword in filename_lower:
+                    score += 2  # Filename matches get higher weight
+                if keyword in content_lower:
+                    score += 1
+            
+            # Check Arabic keywords
+            for keyword in keywords["ar"]:
+                if keyword in filename:  # Don't lowercase Arabic text
+                    score += 2
+                if keyword in content:
+                    score += 1
+            
+            category_scores[category] = score
+        
+        # Find category with highest score
+        if category_scores:
+            best_category = max(category_scores.items(), key=lambda x: x[1])
+            if best_category[1] > 0:
+                return best_category[0]
+        
+        return "General Training"
     
     def process_document(self, file_path: Path) -> List[LangchainDocument]:
         """Process a single document and return chunked documents"""
@@ -113,8 +191,9 @@ class DocumentProcessor:
             logger.warning(f"No text extracted from {file_path}")
             return []
         
-        # Determine document category
+        # Determine document category and language
         category = self.determine_document_category(file_path.name, text)
+        detected_language = self.detect_language(text)
         
         # Split text into chunks
         chunks = self.text_splitter.split_text(text)
@@ -126,6 +205,7 @@ class DocumentProcessor:
                 "source": str(file_path),
                 "filename": file_path.name,
                 "category": category,
+                "language": detected_language,
                 "chunk_index": i,
                 "total_chunks": len(chunks)
             }
