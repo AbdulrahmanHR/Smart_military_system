@@ -1,0 +1,12 @@
+# System packages required for Streamlit Cloud deployment
+# This file lists Linux packages that need to be installed
+
+# For document processing and text extraction
+poppler-utils
+# For Arabic text rendering and processing
+fonts-noto
+fonts-noto-cjk
+fonts-liberation
+# For machine learning libraries
+build-essential
+python3-dev

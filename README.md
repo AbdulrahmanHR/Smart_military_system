@@ -31,6 +31,8 @@ An AI-powered military training assistant using Retrieval-Augmented Generation (
 
 ## 🚀 Quick Setup (3 Steps)
 
+### For Local Development
+
 ### 1. Install Dependencies
 
 ```bash
@@ -126,6 +128,19 @@ MAX_TOKENS=1024          # Maximum response length
 CHUNK_SIZE=500           # Document chunk size
 RETRIEVAL_K=5            # Number of sources to retrieve
 ```
+
+## 🌐 Streamlit Cloud Deployment
+
+Deploy directly to Streamlit Cloud:
+
+1. **Push to GitHub**: Ensure your code is in a GitHub repository
+2. **Deploy**: Go to [share.streamlit.io](https://share.streamlit.io) and connect your repo
+3. **Add Secrets**: In App Settings > Secrets, add your Google API key:
+   ```toml
+   GOOGLE_API_KEY = "your_google_api_key_here"
+   ```
+
+The app is already optimized for cloud deployment with CPU-only PyTorch and automatic database initialization.
 
 ## 🐛 Troubleshooting
 
