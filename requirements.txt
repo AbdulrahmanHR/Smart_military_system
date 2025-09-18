@@ -1,0 +1,33 @@
+# Core Dependencies
+streamlit==1.29.0
+langchain-core>=0.3.76
+langchain>=0.3.27
+langchain-google-genai>=2.0.0
+langchain-community>=0.3.27
+langchain-text-splitters>=0.3.11
+langchain-chroma>=0.2.6
+langchain-huggingface>=0.3.1
+chromadb>=1.1.0
+sentence-transformers>=2.7.0
+torch>=2.0.0
+transformers>=4.30.0
+
+# Document Processing
+PyPDF2==3.0.1
+python-docx==1.1.0
+python-dotenv==1.0.0
+
+# Additional Utilities
+pandas==2.1.4
+numpy>=1.26.0
+tiktoken==0.5.2
+requests==2.31.0
+
+# UI Enhancements
+streamlit-chat==0.1.1
+plotly==5.17.0
+
+# Development and Testing
+pytest==7.4.3
+black==23.11.0
+flake8==6.1.0
