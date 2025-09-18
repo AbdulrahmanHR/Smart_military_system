@@ -1,7 +1,6 @@
 # Environment variables
 .env
 .env.local
-.env.production
 
 # Python
 __pycache__/
@@ -29,44 +28,26 @@ wheels/
 venv/
 env/
 ENV/
-.venv/
 
-# IDE files
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# OS files
+# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Vector database (will be recreated automatically)
+# Vector database (will be recreated)
 data/vector_db/
 
 # Logs
 *.log
 logs/
 
-# Streamlit secrets (contains API keys)
+# Streamlit
 .streamlit/secrets.toml
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
-
-# PyTorch model cache
-.torch/
-
-# Hugging Face model cache
-.cache/huggingface/

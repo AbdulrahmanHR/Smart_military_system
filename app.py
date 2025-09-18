@@ -7,38 +7,10 @@ from datetime import datetime
 
 from config.settings import config
 from src.rag_system import MilitaryTrainingRAG
-from src.document_processor import DocumentProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-@st.cache_resource
-def initialize_database_if_needed():
-    """Initialize database with sample documents if it's empty - cached for performance"""
-    try:
-        doc_processor = DocumentProcessor()
-        
-        # Check if documents directory exists
-        if not config.DOCUMENTS_DIR.exists():
-            logger.warning(f"Documents directory not found: {config.DOCUMENTS_DIR}")
-            return False
-        
-        # Process all documents
-        documents = doc_processor.process_directory(config.DOCUMENTS_DIR)
-        
-        if documents:
-            # Add to the existing RAG system
-            if hasattr(st.session_state, 'rag_system') and st.session_state.rag_system:
-                success = st.session_state.rag_system.add_training_documents(documents)
-                if success:
-                    logger.info(f"Successfully initialized database with {len(documents)} documents")
-                    return True
-        
-        return False
-    except Exception as e:
-        logger.error(f"Error initializing database: {e}")
-        return False
 
 # Page configuration
 st.set_page_config(
@@ -98,26 +70,10 @@ def initialize_session_state():
         
         with st.spinner(init_msg):
             try:
-                # Initialize the system with error handling for cloud deployment
                 st.session_state.rag_system = MilitaryTrainingRAG()
-                
-                # Check if database is empty and needs initialization
-                stats = st.session_state.rag_system.get_knowledge_base_stats()
-                if stats.get("total_documents", 0) == 0:
-                    init_db_msg = ("تهيئة قاعدة البيانات..." if st.session_state.ui_language == "ar" 
-                                 else "Initializing database...")
-                    with st.spinner(init_db_msg):
-                        initialize_database_if_needed()
-                
                 st.success(success_msg)
             except Exception as e:
                 st.error(f"{error_msg}: {e}")
-                if st.session_state.ui_language == "ar":
-                    st.info("يرجى التحقق من ملف .env والتأكد من تعيين GOOGLE_API_KEY")
-                    st.info("أو إضافة المفاتيح في إعدادات Streamlit Cloud")
-                else:
-                    st.info("Please check your .env file and ensure GOOGLE_API_KEY is set")
-                    st.info("Or add secrets in Streamlit Cloud settings")
                 st.stop()
     
     if "selected_category" not in st.session_state:

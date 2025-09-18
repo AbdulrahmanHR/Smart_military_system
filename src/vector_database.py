@@ -25,14 +25,15 @@ class VectorDatabase:
         self._initialize_database()
     
     def _initialize_embeddings(self):
-        """Initialize HuggingFace embeddings with Arabic and multilingual support - optimized for cloud deployment"""
+        """Initialize HuggingFace embeddings with Arabic and multilingual support"""
         try:
-            # Priority list of Arabic-supporting embedding models (optimized for cloud)
+            # Priority list of Arabic-supporting embedding models
             arabic_models = [
                 config.EMBEDDING_MODEL,
                 "sentence-transformers/paraphrase-multilingual-mpnet-base-v2",  # Supports Arabic
-                "sentence-transformers/distiluse-base-multilingual-cased",      # Supports Arabic, smaller
-                "sentence-transformers/all-MiniLM-L6-v2"                       # Fallback, very small
+                "sentence-transformers/distiluse-base-multilingual-cased",      # Supports Arabic
+                "sentence-transformers/LaBSE",                                  # Language-agnostic model
+                "sentence-transformers/all-MiniLM-L6-v2"                       # Fallback
             ]
             
             for model_name in arabic_models:
@@ -40,13 +41,11 @@ class VectorDatabase:
                     embeddings = HuggingFaceEmbeddings(
                         model_name=model_name,
                         model_kwargs={
-                            'device': 'cpu',  # Force CPU for cloud deployment
+                            'device': 'cpu',
                             'trust_remote_code': True
                         },
                         encode_kwargs={
-                            'normalize_embeddings': True,
-                            'batch_size': 16,  # Smaller batch size for cloud
-                            'show_progress_bar': False  # Disable progress bar for cloud
+                            'normalize_embeddings': True
                         }
                     )
                     logger.info(f"Successfully initialized Arabic-supporting embeddings: {model_name}")
