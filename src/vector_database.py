@@ -3,6 +3,14 @@ Vector database module using Chroma for military training document storage and r
 """
 import logging
 from typing import List, Optional, Dict, Any
+import sys
+
+# Fix for SQLite compatibility on Streamlit Cloud
+try:
+    import pysqlite3
+    sys.modules['sqlite3'] = pysqlite3
+except ImportError:
+    pass
 
 import chromadb
 from chromadb.config import Settings
