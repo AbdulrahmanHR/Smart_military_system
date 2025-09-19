@@ -84,19 +84,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware for frontend access
-# Get allowed origins from environment variable or allow same origin only
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-if allowed_origins_env:
-    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
-else:
-    # If no specific origins set, allow same origin only (secure default for any deployment)
-    allowed_origins = ["*"]  # FastAPI serves frontend from same origin, so this is safe
-
+# CORS middleware for frontend access - simplified for deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins - simplest for deployment
+    allow_credentials=False,  # Set to False when using allow_origins=["*"]
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
@@ -474,6 +466,11 @@ async def read_root():
         return HTMLResponse(content=html_content)
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Frontend not found. Please create frontend/index.html</h1>")
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Handle favicon requests"""
+    return {"message": "No favicon"}
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
