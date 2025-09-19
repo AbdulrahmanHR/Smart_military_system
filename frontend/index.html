@@ -1099,10 +1099,6 @@
             }
         }
 
-        function toggleUpload() {
-            const uploadArea = document.getElementById('upload-area');
-            uploadArea.classList.toggle('show');
-        }
 
         // File selection functions
         async function loadAvailableFiles() {
@@ -1193,43 +1189,6 @@
                 display.innerHTML = `<strong>${currentLanguage === 'ar' ? 'البحث في:' : 'Searching in:'}</strong> ${tags}`;
             }
         }
-
-        // File upload handling
-        document.getElementById('file-input').addEventListener('change', async function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            const uploadStatus = document.getElementById('upload-status');
-            uploadStatus.textContent = currentLanguage === 'ar' ? 'جاري رفع الملف...' : 'Uploading...';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok) {
-                    uploadStatus.textContent = currentLanguage === 'ar' ? 'تم رفع الملف بنجاح' : 'File uploaded successfully';
-                    uploadStatus.style.color = 'green';
-                    // Refresh the file list
-                    await loadAvailableFiles();
-                } else {
-                    uploadStatus.textContent = result.detail || (currentLanguage === 'ar' ? 'فشل في رفع الملف' : 'Upload failed');
-                    uploadStatus.style.color = 'red';
-                }
-            } catch (error) {
-                uploadStatus.textContent = currentLanguage === 'ar' ? 'خطأ في رفع الملف' : 'Upload error';
-                uploadStatus.style.color = 'red';
-            }
-            
-            // Clear the file input
-            event.target.value = '';
-        });
 
         // Auto-resize textarea
         document.getElementById('question-input').addEventListener('input', function() {

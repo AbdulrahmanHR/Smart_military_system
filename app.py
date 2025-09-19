@@ -84,11 +84,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware for frontend access - simplified for deployment
+# CORS middleware for frontend access - production ready
+cors_origins = os.getenv("CORS_ORIGINS", "https://smart.ibrahimshaikh.com.tr,http://localhost:3000,http://localhost:8000")
+allowed_origins = [origin.strip() for origin in cors_origins.split(",")] if cors_origins else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins - simplest for deployment
-    allow_credentials=False,  # Set to False when using allow_origins=["*"]
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
@@ -461,11 +464,23 @@ Answer:"""
 async def read_root():
     """Serve the main frontend page"""
     try:
-        with open("frontend/index.html", "r", encoding="utf-8") as f:
+        frontend_path = Path("frontend/index.html")
+        if not frontend_path.exists():
+            logger.error(f"Frontend file not found at {frontend_path}")
+            return HTMLResponse(
+                content="<h1>Frontend not found. Please ensure frontend/index.html exists.</h1>",
+                status_code=500
+            )
+        
+        with open(frontend_path, "r", encoding="utf-8") as f:
             html_content = f.read()
         return HTMLResponse(content=html_content)
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>Frontend not found. Please create frontend/index.html</h1>")
+    except Exception as e:
+        logger.error(f"Error serving frontend: {e}")
+        return HTMLResponse(
+            content=f"<h1>Error loading frontend: {str(e)}</h1>",
+            status_code=500
+        )
 
 @app.get("/favicon.ico")
 async def favicon():
@@ -474,11 +489,37 @@ async def favicon():
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint"""
-    return HealthResponse(
-        status="healthy",
-        message="Military Training Chatbot is running"
-    )
+    """Health check endpoint with diagnostics"""
+    try:
+        # Check if Gemini is configured
+        gemini_status = "configured" if os.getenv("GOOGLE_API_KEY") else "not configured"
+        
+        # Check if vectorstore is initialized
+        vectorstore_status = "initialized" if vectorstore else "not initialized"
+        
+        # Check documents directory
+        documents_dir = Path("documents")
+        documents_exist = documents_dir.exists()
+        
+        status_details = {
+            "gemini": gemini_status,
+            "vectorstore": vectorstore_status,
+            "documents_dir": "exists" if documents_exist else "missing",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        overall_status = "healthy" if gemini_status == "configured" and vectorstore_status == "initialized" else "degraded"
+        
+        return HealthResponse(
+            status=overall_status,
+            message=f"Military Training Chatbot - Status: {overall_status}. Details: {status_details}"
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return HealthResponse(
+            status="unhealthy",
+            message=f"Health check failed: {str(e)}"
+        )
 
 @app.get("/files")
 async def get_files_endpoint():
