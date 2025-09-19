@@ -1,284 +1,556 @@
 """
-Military Training Chatbot - Streamlit Interface
+Military Training Chatbot MVP - FastAPI Backend
+Supporting both Arabic and English languages with RAG system
 """
-import streamlit as st
+
+import os
+import asyncio
+from pathlib import Path
+from typing import List, Optional, Dict, Any
 import logging
 from datetime import datetime
+from contextlib import asynccontextmanager
 
-from config.settings import config
-from src.rag_system import MilitaryTrainingRAG
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+
+import google.generativeai as genai
+from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain.docstore.document import Document
+from langchain.memory import ConversationBufferWindowMemory
+from langchain_core.messages import HumanMessage, AIMessage
+import pyarabic.araby as araby
+import chromadb
+from sentence_transformers import SentenceTransformer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Page configuration
-st.set_page_config(
-    page_title=config.PAGE_TITLE,
-    page_icon=config.PAGE_ICON,
-    layout=config.LAYOUT,
-    initial_sidebar_state="expanded"
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for startup and shutdown"""
+    # Startup
+    logger.info("Starting Military Training Chatbot...")
+    
+    # Initialize Gemini
+    gemini_initialized = initialize_gemini()
+    if not gemini_initialized:
+        logger.warning("Gemini not initialized - check GOOGLE_API_KEY")
+    
+    # Initialize RAG system
+    await initialize_rag_system()
+    logger.info("Chatbot startup completed")
+    
+    yield
+    
+    # Shutdown (if needed)
+    logger.info("Shutting down Military Training Chatbot...")
+
+# FastAPI app initialization
+app = FastAPI(
+    title="Military Training Chatbot",
+    description="MVP Chatbot for Military Training with Arabic and English support",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-# CSS styling with Arabic support
-st.markdown("""
-<style>
-    .stChatMessage {
-        margin-bottom: 1rem;
-    }
-    
-    /* Arabic text support */
-    .arabic-text {
-        direction: rtl;
-        text-align: right;
-        font-family: 'Arial', 'Tahoma', 'Microsoft Sans Serif', sans-serif;
-    }
-    
-    /* Language selector styling */
-    .language-selector {
-        margin-bottom: 1rem;
-    }
-    
-    /* RTL support for Arabic interface */
-    .rtl {
-        direction: rtl;
-        text-align: right;
-    }
-    
-    /* Better Arabic font rendering */
-    .stSelectbox > div > div {
-        font-family: 'Arial', 'Tahoma', sans-serif;
-    }
-</style>
-""", unsafe_allow_html=True)
+# CORS middleware for frontend access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for local development
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
-def initialize_session_state():
-    """Initialize Streamlit session state variables with Arabic support"""
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-    
-    if "ui_language" not in st.session_state:
-        st.session_state.ui_language = "en"
-    
-    if "rag_system" not in st.session_state:
-        init_msg = ("تهيئة مساعد التدريب العسكري..." if st.session_state.ui_language == "ar" 
-                   else "Initializing Military Training Assistant...")
-        success_msg = ("✅ تم تهيئة النظام بنجاح!" if st.session_state.ui_language == "ar" 
-                      else "✅ System initialized successfully!")
-        error_msg = ("❌ فشل في تهيئة النظام" if st.session_state.ui_language == "ar" 
-                    else "❌ Failed to initialize system")
-        
-        with st.spinner(init_msg):
-            try:
-                st.session_state.rag_system = MilitaryTrainingRAG()
-                st.success(success_msg)
-            except Exception as e:
-                st.error(f"{error_msg}: {e}")
-                st.stop()
-    
-    if "selected_category" not in st.session_state:
-        st.session_state.selected_category = "All Categories"
+# Mount static files for frontend
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
-def display_header():
-    """Display the main application header with language support"""
-    if st.session_state.ui_language == "ar":
-        st.markdown('<div class="rtl">', unsafe_allow_html=True)
-        st.title("⚔️ مساعد التدريب العسكري")
-        st.caption("دعم التدريب بالذكاء الاصطناعي")
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.title("⚔️ Military Training Assistant")
-        st.caption("AI-Powered Training Support")
+# Pydantic models for request/response
+class ChatRequest(BaseModel):
+    question: str
+    language: str = "en"  # "en" or "ar"
+    selected_files: List[str] = []  # List of specific files to search in
+    session_id: str = "default"  # Session identifier for conversation memory
 
-def display_chat_interface():
-    """Display the main chat interface with Arabic support"""
-    if st.session_state.ui_language == "ar":
-        st.markdown('<div class="rtl">', unsafe_allow_html=True)
-        st.subheader("💬 مناقشة التدريب")
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.subheader("💬 Training Discussion")
+class ChatResponse(BaseModel):
+    answer: str
+    sources: List[str]
+    language: str
+    timestamp: str
+    available_files: List[str] = []  # List of available files for selection
+
+class HealthResponse(BaseModel):
+    status: str
+    message: str
+
+# Global variables for RAG system
+vectorstore: Optional[Chroma] = None
+embeddings: Optional[SentenceTransformerEmbeddings] = None
+text_splitter: Optional[RecursiveCharacterTextSplitter] = None
+
+# Conversation memory for each session
+session_memories: Dict[str, ConversationBufferWindowMemory] = {}
+max_memory_length = 10  # Keep last 10 exchanges
+
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+manager = ConnectionManager()
+
+def initialize_gemini():
+    """Initialize Google Gemini AI"""
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        logger.warning("GOOGLE_API_KEY not found in environment variables")
+        return False
     
-    # Display chat history using Streamlit's chat message component
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            # Detect if message content is Arabic and apply RTL styling
-            content = message["content"]
-            if any('\u0600' <= char <= '\u06FF' for char in content):
-                st.markdown(f'<div class="arabic-text">{content}</div>', unsafe_allow_html=True)
-            else:
-                st.write(content)
-            st.caption(f"⏰ {message['timestamp']}")
-            
-            # Display sources if available (for assistant messages)
-            if message["role"] == "assistant" and "sources" in message and message["sources"]:
-                sources_label = f"📚 المصادر ({len(message['sources'])})" if st.session_state.ui_language == "ar" else f"📚 Sources ({len(message['sources'])})"
-                with st.expander(sources_label, expanded=False):
-                    for source in message["sources"]:
-                        language_flag = "🇸🇦" if source.get('language') == 'ar' else "🇬🇧"
-                        st.caption(f"• {language_flag} {source['filename']}")
+    try:
+        genai.configure(api_key=api_key)
+        logger.info("Google Gemini AI initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini: {e}")
+        return False
 
-def handle_user_input():
-    """Handle user input and generate responses with Arabic support"""
-    # User input with language-appropriate placeholder
-    placeholder = ("اسأل سؤالك حول التدريب العسكري هنا..." if st.session_state.ui_language == "ar" 
-                  else "Ask your military training question here...")
-    user_input = st.chat_input(placeholder)
+def clean_arabic_text(text: str) -> str:
+    """Clean and normalize Arabic text"""
+    if not text:
+        return text
     
-    if user_input:
-        # Add user message to history
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": user_input,
-            "timestamp": timestamp
-        })
-        
-        # Generate response with language-appropriate messages
-        spinner_msg = ("🤔 تحليل مواد التدريب..." if st.session_state.ui_language == "ar" 
-                      else "🤔 Analyzing training materials...")
-        with st.spinner(spinner_msg):
-            try:
-                response_data = st.session_state.rag_system.query(
-                    question=user_input,
-                    category_filter=st.session_state.selected_category if st.session_state.selected_category != "All Categories" else None,
-                    return_sources=True
-                )
-                
-                # Add assistant response to history
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": response_data["response"],
-                    "sources": response_data["sources"],
-                    "timestamp": timestamp
-                })
-                
-            except Exception as e:
-                error_msg = f"خطأ في توليد الإجابة: {e}" if st.session_state.ui_language == "ar" else f"Error generating response: {e}"
-                st.error(error_msg)
-                
-                fallback_msg = ("أعتذر، واجهت خطأ في معالجة سؤالك. يرجى المحاولة مرة أخرى." if st.session_state.ui_language == "ar" 
-                               else "I apologize, but I encountered an error processing your question. Please try again.")
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": fallback_msg,
-                    "timestamp": timestamp
-                })
-        
-        # Rerun to display new messages
-        st.rerun()
+    # Remove extra whitespaces
+    text = " ".join(text.split())
+    
+    # Normalize Arabic text
+    text = araby.strip_diacritics(text)
+    text = araby.normalize_hamza(text)
+    text = araby.normalize_alef(text)
+    text = araby.normalize_teh(text)
+    
+    return text
 
-def display_sidebar():
-    """Display sidebar with language selection and essential controls"""
-    with st.sidebar:
-        # Language selection
-        language_options = {"English": "en", "العربية": "ar"}
-        selected_lang = st.selectbox(
-            "Language / اللغة",
-            options=list(language_options.keys()),
-            index=0 if st.session_state.ui_language == "en" else 1,
-            key="language_selector"
+def detect_language(text: str) -> str:
+    """Simple language detection"""
+    arabic_chars = sum(1 for char in text if '\u0600' <= char <= '\u06FF')
+    total_chars = len([char for char in text if char.isalpha()])
+    
+    if total_chars == 0:
+        return "en"
+    
+    arabic_ratio = arabic_chars / total_chars
+    return "ar" if arabic_ratio > 0.3 else "en"
+
+def get_session_memory(session_id: str) -> ConversationBufferWindowMemory:
+    """Get or create conversation memory for a session"""
+    if session_id not in session_memories:
+        session_memories[session_id] = ConversationBufferWindowMemory(
+            k=max_memory_length,
+            return_messages=True
+        )
+    return session_memories[session_id]
+
+def get_available_files() -> List[str]:
+    """Get list of available document files"""
+    documents_dir = Path("documents")
+    if not documents_dir.exists():
+        return []
+    
+    available_files = []
+    for file_path in documents_dir.glob("*"):
+        if file_path.suffix.lower() in ['.pdf', '.txt']:
+            available_files.append(file_path.name)
+    
+    return sorted(available_files)
+
+async def initialize_rag_system():
+    """Initialize the RAG system with multilingual embeddings"""
+    global vectorstore, embeddings, text_splitter
+    
+    try:
+        # Initialize multilingual embeddings
+        logger.info("Loading multilingual embeddings...")
+        embeddings = SentenceTransformerEmbeddings(
+            model_name="paraphrase-multilingual-MiniLM-L12-v2"
         )
         
-        # Update UI language
-        new_language = language_options[selected_lang]
-        if new_language != st.session_state.ui_language:
-            st.session_state.ui_language = new_language
-            st.rerun()
+        # Initialize text splitter
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500,
+            chunk_overlap=50,
+            length_function=len,
+        )
         
-        # Localized headers
-        if st.session_state.ui_language == "ar":
-            st.markdown('<div class="rtl">', unsafe_allow_html=True)
-            st.subheader("🎯 عناصر التحكم")
-            
-            # Category selection in Arabic
-            category_options = dict(zip(config.TRAINING_CATEGORIES, config.TRAINING_CATEGORIES_AR))
-            selected_ar_category = st.selectbox(
-                "فئة التدريب",
-                options=list(category_options.values()),
-                index=list(category_options.keys()).index(st.session_state.selected_category)
-            )
-            # Map back to English for backend processing
-            st.session_state.selected_category = list(category_options.keys())[list(category_options.values()).index(selected_ar_category)]
-            
-            # Chat management in Arabic
-            if st.button("🗑️ مسح المحادثة"):
-                st.session_state.chat_history = []
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.subheader("🎯 Controls")
-            
-            # Category selection in English
-            st.session_state.selected_category = st.selectbox(
-                "Training Category",
-                config.TRAINING_CATEGORIES,
-                index=config.TRAINING_CATEGORIES.index(st.session_state.selected_category)
-            )
-            
-            # Chat management in English
-            if st.button("🗑️ Clear Chat"):
-                st.session_state.chat_history = []
-                st.rerun()
+        # Initialize Chroma vectorstore
+        persist_directory = "database/chroma_db"
+        os.makedirs(persist_directory, exist_ok=True)
+        
+        vectorstore = Chroma(
+            persist_directory=persist_directory,
+            embedding_function=embeddings,
+            collection_name="military_training"
+        )
+        
+        logger.info("RAG system initialized successfully")
+        
+        # Load initial documents if any exist
+        await load_initial_documents()
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize RAG system: {e}")
+        raise
 
-
-def display_welcome_message():
-    """Display welcome message and instructions with language support"""
-    if not st.session_state.chat_history:
-        if st.session_state.ui_language == "ar":
-            st.markdown("""
-            <div class="rtl arabic-text">
-            
-            ### 🎖️ مرحباً بك في مساعد التدريب العسكري
-            
-            أنا هنا لمساعدتك في أسئلة التدريب العسكري التي تغطي التكتيكات والمعدات والبروتوكولات وأكثر.
-            
-            **كيفية الاستخدام:** اختر فئة (اختياري) واسأل سؤالك أدناه.
-            
-            **مثال:** "ما هي إجراءات إنشاء محيط دفاعي؟"
-            
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            ### 🎖️ Welcome to the Military Training Assistant
-            
-            I'm here to help with military training questions covering tactics, equipment, protocols, and more.
-            
-            **How to use:** Select a category (optional) and ask your question below.
-            
-            **Example:** "What are the procedures for establishing a defensive perimeter?"
-            """)
-
-def main():
-    """Main application function"""
-    # Initialize session state
-    initialize_session_state()
+async def load_initial_documents():
+    """Load documents from the documents folder"""
+    documents_dir = Path("documents")
+    if not documents_dir.exists():
+        documents_dir.mkdir(exist_ok=True)
+        logger.info("Created documents directory")
+        return
     
-    # Validate configuration
+    document_files = list(documents_dir.glob("*.pdf")) + list(documents_dir.glob("*.txt"))
+    
+    if not document_files:
+        logger.info("No initial documents found in documents folder")
+        return
+    
+    for file_path in document_files:
+        try:
+            await process_document(file_path)
+            logger.info(f"Loaded document: {file_path.name}")
+        except Exception as e:
+            logger.error(f"Failed to load document {file_path.name}: {e}")
+
+async def process_document(file_path: Path) -> bool:
+    """Process and add document to vectorstore"""
     try:
-        config.validate_config()
-    except ValueError as e:
-        if st.session_state.ui_language == "ar":
-            st.error(f"خطأ في التكوين: {e}")
-            st.info("يرجى التحقق من ملف .env والتأكد من تعيين GOOGLE_API_KEY")
+        # Load document based on file type
+        if file_path.suffix.lower() == '.pdf':
+            loader = PyPDFLoader(str(file_path))
+        elif file_path.suffix.lower() == '.txt':
+            loader = TextLoader(str(file_path), encoding='utf-8')
         else:
-            st.error(f"Configuration Error: {e}")
-            st.info("Please check your .env file and ensure GOOGLE_API_KEY is set")
-        st.stop()
+            logger.warning(f"Unsupported file type: {file_path.suffix}")
+            return False
+        
+        documents = loader.load()
+        
+        # Process each document
+        processed_docs = []
+        for doc in documents:
+            # Clean text based on language
+            content = doc.page_content
+            detected_lang = detect_language(content)
+            
+            if detected_lang == "ar":
+                content = clean_arabic_text(content)
+            
+            # Split into chunks
+            chunks = text_splitter.split_text(content)
+            
+            for i, chunk in enumerate(chunks):
+                if len(chunk.strip()) < 50:  # Skip very short chunks
+                    continue
+                
+                processed_doc = Document(
+                    page_content=chunk,
+                    metadata={
+                        "source": file_path.name,
+                        "language": detected_lang,
+                        "chunk_id": i,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                )
+                processed_docs.append(processed_doc)
+        
+        # Add to vectorstore
+        if processed_docs:
+            vectorstore.add_documents(processed_docs)
+            logger.info(f"Added {len(processed_docs)} chunks from {file_path.name}")
+            return True
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error processing document {file_path.name}: {e}")
+        return False
+
+def get_relevant_context(question: str, language: str, selected_files: List[str] = None, k: int = 3) -> List[Dict[str, Any]]:
+    """Retrieve relevant context from vectorstore with optional file filtering"""
+    if not vectorstore:
+        return []
     
-    # Display header
-    display_header()
+    try:
+        # Clean question if Arabic
+        if language == "ar":
+            question = clean_arabic_text(question)
+        
+        # Search for relevant documents
+        if selected_files and len(selected_files) > 0:
+            logger.info(f"Filtering by selected files: {selected_files}")
+            # Get all results first, then filter manually for more reliable filtering
+            all_results = vectorstore.similarity_search_with_score(question, k=k*3)  # Get more results to filter from
+            
+            # Filter results to only include selected files
+            results = []
+            for doc, score in all_results:
+                if doc.metadata.get("source", "") in selected_files:
+                    results.append((doc, score))
+                    if len(results) >= k:  # Stop when we have enough results
+                        break
+            
+            if not results:
+                logger.warning(f"No results found for selected files {selected_files}, searching all files")
+                results = vectorstore.similarity_search_with_score(question, k=k)
+        else:
+            logger.info("Searching all documents")
+            results = vectorstore.similarity_search_with_score(question, k=k)
+        
+        context_docs = []
+        for doc, score in results:
+            context_docs.append({
+                "content": doc.page_content,
+                "source": doc.metadata.get("source", "Unknown"),
+                "language": doc.metadata.get("language", "en"),
+                "score": score
+            })
+        
+        return context_docs
     
-    # Display sidebar
-    display_sidebar()
+    except Exception as e:
+        logger.error(f"Error retrieving context: {e}")
+        return []
+
+async def generate_response(question: str, context_docs: List[Dict[str, Any]], language: str, session_id: str) -> str:
+    """Generate response using Gemini with conversation memory"""
+    try:
+        # Get conversation memory for this session
+        memory = get_session_memory(session_id)
+        
+        # Prepare context from documents
+        context_text = "\n\n".join([
+            f"Source: {doc['source']}\nContent: {doc['content']}"
+            for doc in context_docs
+        ])
+        
+        # Get conversation history from memory
+        conversation_history = ""
+        if memory.chat_memory.messages:
+            conversation_history = "\n\nPrevious conversation:\n"
+            for msg in memory.chat_memory.messages[-6:]:  # Last 3 exchanges (6 messages)
+                if isinstance(msg, HumanMessage):
+                    conversation_history += f"User: {msg.content}\n"
+                elif isinstance(msg, AIMessage):
+                    conversation_history += f"Assistant: {msg.content}\n"
+        
+        # Create system prompt based on language
+        if language == "ar":
+            system_prompt = """أنت مساعد تدريب عسكري مفيد. مهمتك هي الإجابة على الأسئلة حول الإجراءات العسكرية باستخدام الوثائق المقدمة.
+
+إرشادات:
+- استخدم فقط المعلومات من الوثائق المسترجعة
+- راعي سياق المحادثة السابقة إذا كان متوفراً
+- أجب باللغة العربية بوضوح ودقة
+- قدم إجابات مباشرة ومفيدة
+- اذكر مصادر المعلومات عند الإمكان
+- إذا لم تجد المعلومة في الوثائق، قل ذلك بوضوح
+
+السياق المسترجع:
+{context}
+
+{conversation_history}
+
+السؤال الحالي: {question}
+
+الإجابة:"""
+        else:
+            system_prompt = """You are a helpful military training assistant. Your task is to answer questions about military procedures using the provided documents.
+
+Guidelines:
+- Use only information from the retrieved documents
+- Consider the previous conversation context if available
+- Respond in English clearly and accurately
+- Provide direct and helpful answers
+- Mention source documents when applicable
+- If information is not found in documents, state this clearly
+
+Retrieved Context:
+{context}
+
+{conversation_history}
+
+Current Question: {question}
+
+Answer:"""
+        
+        # Format prompt
+        prompt = system_prompt.format(
+            context=context_text, 
+            question=question,
+            conversation_history=conversation_history
+        )
+        
+        # Generate response using Gemini
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.3,
+                max_output_tokens=1000,
+            )
+        )
+        
+        answer = response.text if response.text else ("عذراً، لا يمكنني تقديم إجابة مناسبة." if language == "ar" else "Sorry, I cannot provide a suitable answer.")
+        
+        # Save conversation to memory
+        memory.chat_memory.add_user_message(question)
+        memory.chat_memory.add_ai_message(answer)
+        
+        return answer
     
-    # Main content area - simplified layout
-    display_welcome_message()
-    display_chat_interface()
+    except Exception as e:
+        logger.error(f"Error generating response: {e}")
+        error_msg = "حدث خطأ في توليد الإجابة." if language == "ar" else "An error occurred while generating the response."
+        return error_msg
+
+# API Endpoints
+
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    """Serve the main frontend page"""
+    try:
+        with open("frontend/index.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content)
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Frontend not found. Please create frontend/index.html</h1>")
+
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint"""
+    return HealthResponse(
+        status="healthy",
+        message="Military Training Chatbot is running"
+    )
+
+@app.get("/files")
+async def get_files_endpoint():
+    """Get list of available files for selection"""
+    try:
+        available_files = get_available_files()
+        return {"files": available_files}
+    except Exception as e:
+        logger.error(f"Error getting files: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve files")
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    """Main chat endpoint with file selection and conversation memory"""
+    try:
+        logger.info(f"Chat request: question='{request.question}', selected_files={request.selected_files}, session_id={request.session_id}")
+        
+        # Detect language if not specified
+        if not request.language:
+            request.language = detect_language(request.question)
+        
+        # Get relevant context with optional file filtering
+        context_docs = get_relevant_context(
+            request.question, 
+            request.language, 
+            request.selected_files if request.selected_files else None
+        )
+        
+        # Generate response with conversation memory
+        answer = await generate_response(
+            request.question, 
+            context_docs, 
+            request.language,
+            request.session_id
+        )
+        
+        # Extract sources
+        sources = list(set([doc["source"] for doc in context_docs]))
+        
+        # Get available files for the response
+        available_files = get_available_files()
+        
+        return ChatResponse(
+            answer=answer,
+            sources=sources,
+            language=request.language,
+            timestamp=datetime.now().isoformat(),
+            available_files=available_files
+        )
     
-    # Chat input must be outside any containers (columns, expanders, etc.)
-    handle_user_input()
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Upload and process new document"""
+    try:
+        # Validate file type
+        if not file.filename.endswith(('.pdf', '.txt')):
+            raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
+        
+        # Save file
+        file_path = Path("documents") / file.filename
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # Process document
+        success = await process_document(file_path)
+        
+        if success:
+            return {"message": f"Document {file.filename} uploaded and processed successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to process document")
+    
+    except Exception as e:
+        logger.error(f"Error uploading document: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload document")
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time chat"""
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Process the message (similar to chat endpoint)
+            # For now, just echo back
+            await manager.send_personal_message(f"Echo: {data}", websocket)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)

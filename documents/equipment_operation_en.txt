@@ -1,0 +1,187 @@
+MILITARY EQUIPMENT OPERATION MANUAL
+
+CHAPTER 1: PERSONAL PROTECTIVE EQUIPMENT (PPE)
+
+1.1 BODY ARMOR
+Modern body armor consists of multiple protection levels:
+- Level IIA: Protection against low-velocity handgun rounds
+- Level II: Protection against higher velocity handgun rounds
+- Level IIIA: Protection against high-velocity handgun rounds
+- Level III: Protection against rifle rounds
+- Level IV: Protection against armor-piercing rifle rounds
+
+Proper fitting and maintenance:
+- Ensure proper size for full torso coverage
+- Check for damage before each use
+- Replace damaged panels immediately
+- Store in cool, dry environment
+- Regular cleaning according to manufacturer specifications
+
+1.2 HELMETS AND HEAD PROTECTION
+Combat helmets provide protection against:
+- Ballistic threats
+- Fragmentation
+- Blunt force impact
+- Environmental hazards
+
+Helmet components:
+- Outer shell (ballistic protection)
+- Suspension system (comfort and fit)
+- Chin strap (retention)
+- Night vision mount (optional)
+- Communication system integration
+
+1.3 PROTECTIVE EYEWEAR
+Eye protection requirements:
+- Impact resistance (ballistic rated)
+- UV protection
+- Anti-fog coating
+- Peripheral vision preservation
+- Compatibility with other equipment
+
+CHAPTER 2: COMMUNICATION EQUIPMENT
+
+2.1 HANDHELD RADIOS
+Standard operating procedures:
+- Pre-use equipment check
+- Battery level verification
+- Antenna inspection
+- Frequency programming
+- Range testing
+
+Radio maintenance:
+- Daily cleaning of exterior
+- Battery charging schedule
+- Antenna care and storage
+- Water damage prevention
+- Regular frequency calibration
+
+2.2 FIELD PHONES
+Tactical field phone operation:
+- Wire laying procedures
+- Connection testing
+- Signal strength verification
+- Troubleshooting common issues
+- Maintenance in field conditions
+
+2.3 SATELLITE COMMUNICATION
+SATCOM equipment requires:
+- Clear line of sight to satellite
+- Proper antenna positioning
+- Weather condition consideration
+- Security protocol compliance
+- Regular equipment updates
+
+CHAPTER 3: NAVIGATION EQUIPMENT
+
+3.1 GPS DEVICES
+Global Positioning System operation:
+- Satellite signal acquisition
+- Coordinate system understanding
+- Waypoint creation and navigation
+- Battery conservation techniques
+- Backup navigation methods
+
+GPS maintenance:
+- Screen protection
+- Waterproofing verification
+- Software updates
+- Data backup procedures
+- Map loading and management
+
+3.2 COMPASS AND MAP READING
+Traditional navigation skills:
+- Magnetic declination adjustment
+- Triangulation techniques
+- Contour line interpretation
+- Distance estimation
+- Bearing calculation
+
+3.3 NIGHT VISION EQUIPMENT
+Night vision device operation:
+- Tube protection procedures
+- Brightness adjustment
+- Battery management
+- Lens cleaning techniques
+- Storage requirements
+
+CHAPTER 4: VEHICLE OPERATION
+
+4.1 TACTICAL VEHICLES
+Pre-operation inspection (PMCS):
+- Fluid levels check
+- Tire pressure and condition
+- Brake system test
+- Light functionality
+- Communication equipment test
+
+4.2 CONVOY PROCEDURES
+Vehicle convoy operations:
+- Formation and spacing
+- Communication protocols
+- Route planning and security
+- Emergency procedures
+- Maintenance during movement
+
+4.3 ARMORED VEHICLE SYSTEMS
+Specialized systems operation:
+- Weapon system integration
+- Communication suite management
+- Defensive systems activation
+- Emergency evacuation procedures
+- System troubleshooting
+
+CHAPTER 5: MEDICAL EQUIPMENT
+
+5.1 FIRST AID SUPPLIES
+Standard medical kit contents:
+- Bandages and gauze
+- Pressure dressings
+- Tourniquets
+- IV supplies
+- Medications
+- Diagnostic tools
+
+5.2 FIELD MEDICAL EQUIPMENT
+Advanced life support equipment:
+- Defibrillators
+- Ventilation devices
+- Monitoring equipment
+- Surgical instruments
+- Sterilization supplies
+
+5.3 CASUALTY EVACUATION
+MEDEVAC equipment:
+- Stretchers and litters
+- Immobilization devices
+- Communication equipment
+- Marking and signaling devices
+- Weather protection gear
+
+CHAPTER 6: MAINTENANCE PROCEDURES
+
+6.1 PREVENTIVE MAINTENANCE
+Daily maintenance tasks:
+- Visual inspection
+- Functional testing
+- Cleaning procedures
+- Lubrication points
+- Documentation requirements
+
+6.2 CORRECTIVE MAINTENANCE
+Repair procedures:
+- Problem identification
+- Troubleshooting steps
+- Parts replacement
+- Testing after repair
+- Quality assurance
+
+6.3 SUPPLY CHAIN MANAGEMENT
+Equipment logistics:
+- Inventory tracking
+- Requisition procedures
+- Storage requirements
+- Distribution protocols
+- Disposal procedures
+
+This manual covers essential equipment operation procedures. Regular training and hands-on practice are crucial for operational readiness.

@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Military Training Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #1e293b;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body.arabic {
+            font-family: 'Noto Sans Arabic', system-ui, sans-serif;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: min(1200px, calc(100vw - 40px));
+            margin: 0 auto;
+            padding: 20px 20px 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 24px 28px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 16px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #1e40af, #1d4ed8);
+        }
+
+        .header h1 {
+            color: #1e293b;
+            font-weight: 700;
+            font-size: clamp(1.75rem, 4vw, 2.25rem);
+            margin-bottom: 8px;
+            letter-spacing: -0.025em;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: clamp(0.875rem, 2.5vw, 1rem);
+            font-weight: 400;
+            line-height: 1.6;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 50px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .language-toggle {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            display: flex;
+            gap: 4px;
+            background: rgba(15, 23, 42, 0.05);
+            border-radius: 12px;
+            padding: 4px;
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+
+        .arabic .language-toggle {
+            left: 28px;
+            right: auto;
+        }
+
+        .lang-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            font-size: 0.875rem;
+            min-width: 60px;
+            position: relative;
+        }
+
+        .lang-btn.active {
+            background: #3b82f6;
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .lang-btn:hover:not(.active) {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 16px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(100vh - 300px);
+            min-height: 200px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(148, 163, 184, 0.1);
+            border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
+        }
+
+        .message {
+            margin-bottom: 24px;
+            position: relative;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .message.bot {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 85%;
+            padding: 16px 20px;
+            border-radius: 18px;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .message-bubble {
+            background: #f8fafc;
+            color: #1e293b;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.user.arabic {
+            justify-content: flex-start;
+        }
+
+        .message.user.arabic .message-bubble {
+            border-bottom-right-radius: 18px;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.bot.arabic {
+            justify-content: flex-end;
+        }
+
+        .message.bot.arabic .message-bubble {
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-content {
+            font-size: 15px;
+            line-height: 1.7;
+            word-wrap: break-word;
+            hyphens: auto;
+        }
+
+        .message.user .message-content {
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        .message.bot .message-content {
+            color: #334155;
+        }
+
+        .message-content ul, .message-content ol {
+            margin: 12px 0;
+            padding-left: 20px;
+        }
+
+        .message-content.arabic ul, .message-content.arabic ol {
+            padding-left: 0;
+            padding-right: 20px;
+        }
+
+        .message-content li {
+            margin: 8px 0;
+            position: relative;
+        }
+
+        .message-content ul li::marker {
+            color: #64748b;
+        }
+
+        .message-content ol li::marker {
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .message-content strong {
+            font-weight: 600;
+            color: inherit;
+        }
+
+        .message.bot .message-content strong {
+            color: #1e293b;
+        }
+
+        .message.user .message-content strong {
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        .message-content h1, .message-content h2, .message-content h3,
+        .message-content h4, .message-content h5, .message-content h6 {
+            margin: 16px 0 8px 0;
+            font-weight: 600;
+        }
+
+        .message-content p {
+            margin: 8px 0;
+        }
+
+        .message-content code {
+            background: rgba(148, 163, 184, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875em;
+        }
+
+        .message.user .message-content code {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .message-meta {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        .message.user .message-meta {
+            color: rgba(255, 255, 255, 0.8);
+            justify-content: flex-end;
+        }
+
+        .message.bot .message-meta {
+            color: #64748b;
+            justify-content: flex-start;
+        }
+
+        .message.user.arabic .message-meta {
+            justify-content: flex-start;
+        }
+
+        .message.bot.arabic .message-meta {
+            justify-content: flex-end;
+        }
+
+        .sources {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .sources strong {
+            color: #1e40af;
+            font-weight: 600;
+        }
+
+        .sources-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .source-tag {
+            background: rgba(59, 130, 246, 0.15);
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .input-area {
+            padding: 20px 24px;
+            background: rgba(248, 250, 252, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(148, 163, 184, 0.15);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            background: white;
+            border-radius: 24px;
+            padding: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .input-container:focus-within {
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 14px 16px;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            resize: none;
+            max-height: 120px;
+            min-height: 24px;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+
+        .input-field:focus {
+            outline: none;
+        }
+
+        .input-field::placeholder {
+            color: #94a3b8;
+        }
+
+        .send-btn {
+            padding: 12px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #1d4ed8;
+            transform: scale(1.05);
+        }
+
+        .send-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .send-btn:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .send-btn i {
+            font-size: 14px;
+        }
+
+        .loading {
+            display: none;
+            padding: 24px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .loading.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(59, 130, 246, 0.2);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #64748b;
+            border-radius: 50%;
+            animation: typingDots 1.5s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes typingDots {
+            0%, 20% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+            80%, 100% { transform: scale(1); opacity: 1; }
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 30px 24px 20px;
+            color: #64748b;
+        }
+
+        .welcome-message h3 {
+            color: #1e293b;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .welcome-message p {
+            font-size: 1rem;
+            line-height: 1.6;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px 16px 0;
+                gap: 12px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header p {
+                font-size: 0.875rem;
+            }
+            
+            .language-toggle {
+                position: static;
+                justify-content: center;
+                margin-bottom: 12px;
+            }
+
+            .chat-messages {
+                padding: 16px;
+                max-height: calc(100vh - 320px);
+                min-height: 180px;
+            }
+
+            .message-bubble {
+                max-width: 90%;
+            }
+
+            .message-content {
+                font-size: 14px;
+            }
+
+            .input-area {
+                padding: 16px;
+            }
+
+            .input-container {
+                gap: 8px;
+                padding: 6px;
+            }
+
+            .input-field {
+                padding: 12px 14px;
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+
+            .send-btn {
+                width: 40px;
+                height: 40px;
+            }
+
+            .welcome-message {
+                padding: 25px 20px 15px;
+            }
+
+            .welcome-message h3 {
+                font-size: 1.25rem;
+            }
+
+            .welcome-message p {
+                font-size: 0.875rem;
+            }
+
+            /* File selection mobile styles */
+            .file-selection {
+                padding: 12px;
+            }
+
+            .file-selector-container {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .file-selector {
+                min-height: 80px;
+                max-height: 100px;
+            }
+
+            .clear-selection-btn {
+                align-self: flex-end;
+                min-width: auto;
+                width: 100%;
+                max-width: 120px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 12px 12px 0;
+            }
+
+            .header {
+                padding: 16px;
+            }
+
+            .chat-messages {
+                padding: 12px;
+                max-height: calc(100vh - 260px);
+                min-height: 150px;
+            }
+
+            .message-bubble {
+                max-width: 95%;
+                padding: 12px 16px;
+            }
+
+            .input-area {
+                padding: 12px;
+            }
+
+            .welcome-message {
+                padding: 20px 16px 10px;
+            }
+        }
+
+        /* Arabic specific styles */
+        .arabic .input-field {
+            text-align: right;
+        }
+
+        .arabic .message-content {
+            text-align: right;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        .upload-area {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(148, 163, 184, 0.15);
+            background: rgba(248, 250, 252, 0.8);
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area.show {
+            display: block;
+        }
+
+        .upload-btn {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 12px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .upload-btn:active {
+            transform: translateY(0);
+        }
+
+        #upload-status {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* File Selection Styles */
+        .file-selection {
+            margin-bottom: 16px;
+            padding: 16px;
+            background: rgba(248, 250, 252, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .file-selector-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .file-selector-container {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .file-selector {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
+            font-family: inherit;
+            min-height: 44px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .file-selector:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .file-selector option {
+            padding: 8px;
+            font-size: 14px;
+        }
+
+        .file-selector option:checked {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .clear-selection-btn {
+            padding: 12px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .clear-selection-btn:hover {
+            background: #dc2626;
+        }
+
+        .arabic .file-selector-label {
+            text-align: right;
+        }
+
+        .selected-files-display {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .selected-file-tag {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.1);
+            color: #1e40af;
+            padding: 4px 8px;
+            margin: 2px 4px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="language-toggle">
+                <button class="lang-btn active" onclick="setLanguage('en')">English</button>
+                <button class="lang-btn" onclick="setLanguage('ar')">العربية</button>
+            </div>
+            <h1 id="title">Military Training Assistant</h1>
+            <p id="subtitle">Ask questions about military procedures and training in English or Arabic</p>
+            <div class="status-container">
+                <span class="status-indicator"></span>
+                <span id="status-text">System Ready</span>
+            </div>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <div class="welcome-message">
+                    <h3 id="welcome-title">Welcome to Military Training Assistant</h3>
+                    <p id="welcome-text">Ask me questions about military procedures, training protocols, equipment operation, or any other military-related topics. I can respond in both English and Arabic.</p>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+                <span id="loading-text">Processing your question...</span>
+            </div>
+
+            <div class="upload-area" id="upload-area">
+                <input type="file" id="file-input" accept=".pdf,.txt" style="display: none;">
+                <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+                    <span id="upload-btn-text">Upload Document</span>
+                </button>
+                <span id="upload-status"></span>
+            </div>
+
+            <div class="input-area">
+                <!-- File Selection Section -->
+                <div class="file-selection" id="file-selection">
+                    <label for="file-selector" class="file-selector-label">
+                        <span id="file-selector-text">Choose files to search in:</span>
+                    </label>
+                    <div class="file-selector-container">
+                        <select id="file-selector" class="file-selector" multiple onchange="updateSelectedFilesDisplay()">
+                            <option value="" id="all-files-option">Search in all files</option>
+                        </select>
+                        <button id="clear-selection" class="clear-selection-btn" onclick="clearFileSelection()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="selected-files-display" class="selected-files-display"></div>
+                </div>
+
+                <div class="input-container">
+                    <textarea 
+                        id="question-input" 
+                        class="input-field" 
+                        placeholder="Ask a question about military training..."
+                        rows="1"
+                        onkeypress="handleKeyPress(event)"
+                    ></textarea>
+                    <button id="send-btn" class="send-btn" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div style="margin-top: 12px; text-align: center;">
+                    <button style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 13px; padding: 8px 12px; border-radius: 6px; transition: all 0.2s ease; font-weight: 500;" onclick="toggleUpload()" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.color='#3b82f6'" onmouseout="this.style.background='none'; this.style.color='#64748b'">
+                        <span id="toggle-upload-text">📎 Upload Documents</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLanguage = 'en';
+        let sessionId = 'user_' + Math.random().toString(36).substr(2, 9); // Generate unique session ID
+        let availableFiles = [];
+        
+        const translations = {
+            en: {
+                title: "Military Training Assistant",
+                subtitle: "Ask questions about military procedures and training in English or Arabic",
+                statusReady: "System Ready",
+                welcomeTitle: "Welcome to Military Training Assistant",
+                welcomeText: "Ask me questions about military procedures, training protocols, equipment operation, or any other military-related topics. I can respond in both English and Arabic.",
+                placeholder: "Ask a question about military training...",
+                loading: "Processing your question...",
+                uploadBtn: "Upload Document",
+                toggleUpload: "📎 Upload Documents",
+                you: "You",
+                assistant: "Assistant",
+                sources: "Sources:",
+                fileSelectorText: "Choose files to search in:",
+                allFilesOption: "Search in all files"
+            },
+            ar: {
+                title: "مساعد التدريب العسكري",
+                subtitle: "اسأل أسئلة حول الإجراءات العسكرية والتدريب باللغة العربية أو الإنجليزية",
+                statusReady: "النظام جاهز",
+                welcomeTitle: "مرحباً بك في مساعد التدريب العسكري",
+                welcomeText: "اسألني أسئلة حول الإجراءات العسكرية وبروتوكولات التدريب وتشغيل المعدات أو أي مواضيع عسكرية أخرى. يمكنني الإجابة باللغة العربية والإنجليزية.",
+                placeholder: "اسأل سؤالاً حول التدريب العسكري...",
+                loading: "جاري معالجة سؤالك...",
+                uploadBtn: "رفع وثيقة",
+                toggleUpload: "📎 رفع الوثائق",
+                you: "أنت",
+                assistant: "المساعد",
+                sources: "المصادر:",
+                fileSelectorText: "اختر الملفات للبحث فيها:",
+                allFilesOption: "البحث في جميع الملفات"
+            }
+        };
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            document.body.className = lang === 'ar' ? 'arabic' : '';
+            document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+            
+            // Update active button
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update text content
+            const t = translations[lang];
+            document.getElementById('title').textContent = t.title;
+            document.getElementById('subtitle').textContent = t.subtitle;
+            document.getElementById('status-text').textContent = t.statusReady;
+            document.getElementById('welcome-title').textContent = t.welcomeTitle;
+            document.getElementById('welcome-text').textContent = t.welcomeText;
+            document.getElementById('question-input').placeholder = t.placeholder;
+            document.getElementById('loading-text').textContent = t.loading;
+            document.getElementById('upload-btn-text').textContent = t.uploadBtn;
+            document.getElementById('toggle-upload-text').textContent = t.toggleUpload;
+            document.getElementById('file-selector-text').textContent = t.fileSelectorText;
+            document.getElementById('all-files-option').textContent = t.allFilesOption;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function formatMessageContent(content, isUser) {
+            if (isUser) {
+                return content; // User messages don't need formatting
+            }
+            
+            // Convert markdown-like formatting to HTML
+            let formatted = content;
+            
+            // Convert **bold** to <strong>
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert bullet points (-, *, •) to HTML lists
+            const lines = formatted.split('\n');
+            let inList = false;
+            let listType = '';
+            let result = [];
+            
+            for (let line of lines) {
+                const trimmed = line.trim();
+                // Check if line starts with bullet point
+                if (trimmed.match(/^[-*•]\s+/)) {
+                    if (!inList || listType !== 'ul') {
+                        if (inList) {
+                            result.push(`</${listType}>`);
+                        }
+                        result.push('<ul>');
+                        inList = true;
+                        listType = 'ul';
+                    }
+                    const content = trimmed.replace(/^[-*•]\s+/, '');
+                    result.push(`<li>${content}</li>`);
+                } else if (trimmed.match(/^\d+\.\s+/)) {
+                    // Numbered lists
+                    if (!inList || listType !== 'ol') {
+                        if (inList) {
+                            result.push(`</${listType}>`);
+                        }
+                        result.push('<ol>');
+                        inList = true;
+                        listType = 'ol';
+                    }
+                    const content = trimmed.replace(/^\d+\.\s+/, '');
+                    result.push(`<li>${content}</li>`);
+                } else {
+                    if (inList) {
+                        result.push(`</${listType}>`);
+                        inList = false;
+                        listType = '';
+                    }
+                    if (trimmed) {
+                        result.push(line);
+                    } else if (result.length > 0) {
+                        result.push(''); // Preserve empty lines for paragraph breaks
+                    }
+                }
+            }
+            
+            if (inList) {
+                result.push(`</${listType}>`);
+            }
+            
+            return result.join('\n').replace(/\n/g, '<br>');
+        }
+        
+        function addMessage(content, isUser, sources = [], timestamp = null) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            const t = translations[currentLanguage];
+            
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}${currentLanguage === 'ar' ? ' arabic' : ''}`;
+            
+            const formattedContent = formatMessageContent(content, isUser);
+            
+            let bubbleHTML = `
+                <div class="message-bubble">
+                    <div class="message-content${currentLanguage === 'ar' ? ' arabic' : ''}">${formattedContent}</div>
+                    <div class="message-meta">
+                        <span><strong>${isUser ? t.you : t.assistant}</strong></span>
+                        <span>${timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
+                    </div>
+            `;
+            
+            if (!isUser && sources && sources.length > 0) {
+                const sourcesList = sources.map(source => `<span class="source-tag">${source}</span>`).join('');
+                bubbleHTML += `
+                    <div class="sources">
+                        <strong>${t.sources}</strong>
+                        <div class="sources-list">${sourcesList}</div>
+                    </div>
+                `;
+            }
+            
+            bubbleHTML += `</div>`;
+            messageDiv.innerHTML = bubbleHTML;
+            
+            messagesContainer.appendChild(messageDiv);
+            setTimeout(() => scrollToBottom(), 100);
+            
+            // Hide welcome message
+            const welcomeMessage = document.querySelector('.welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'none';
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('question-input');
+            const question = input.value.trim();
+            
+            if (!question) return;
+            
+            // Add user message
+            addMessage(question, true);
+            
+            // Clear input and disable send button
+            input.value = '';
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            
+            // Show loading
+            document.getElementById('loading').classList.add('show');
+            
+            try {
+                const selectedFiles = getSelectedFiles();
+                const response = await fetch('http://localhost:8000/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        language: currentLanguage,
+                        selected_files: selectedFiles,
+                        session_id: sessionId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Add bot response
+                addMessage(data.answer, false, data.sources, data.timestamp);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                const errorMsg = currentLanguage === 'ar' 
+                    ? 'عذراً، حدث خطأ في النظام. يرجى المحاولة مرة أخرى.'
+                    : 'Sorry, there was a system error. Please try again.';
+                addMessage(errorMsg, false);
+            } finally {
+                // Hide loading and enable send button
+                document.getElementById('loading').classList.remove('show');
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function toggleUpload() {
+            const uploadArea = document.getElementById('upload-area');
+            uploadArea.classList.toggle('show');
+        }
+
+        // File selection functions
+        async function loadAvailableFiles() {
+            try {
+                const response = await fetch('http://localhost:8000/files');
+                const data = await response.json();
+                availableFiles = data.files || [];
+                updateFileSelector();
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+
+        function updateFileSelector() {
+            const selector = document.getElementById('file-selector');
+            const t = translations[currentLanguage];
+            
+            // Clear existing options except the first one
+            while (selector.options.length > 1) {
+                selector.removeChild(selector.lastChild);
+            }
+            
+            // Update the text of the first option
+            if (selector.options.length > 0) {
+                selector.options[0].textContent = t.allFilesOption;
+                selector.options[0].selected = true; // Ensure "all files" is selected by default
+            }
+            
+            // Add available files as options
+            availableFiles.forEach(file => {
+                const option = document.createElement('option');
+                option.value = file;
+                option.textContent = file;
+                selector.appendChild(option);
+            });
+            
+            // Update the display
+            updateSelectedFilesDisplay();
+        }
+
+        function getSelectedFiles() {
+            const selector = document.getElementById('file-selector');
+            const selectedFiles = [];
+            
+            // Check if "all files" option is selected (first option with empty value)
+            const allFilesSelected = selector.options[0] && selector.options[0].selected;
+            
+            if (allFilesSelected) {
+                // If "all files" is selected, return empty array to search all files
+                console.log('All files selected for search');
+                return [];
+            }
+            
+            // Otherwise, get specific selected files
+            for (let i = 1; i < selector.options.length; i++) {
+                if (selector.options[i].selected && selector.options[i].value) {
+                    selectedFiles.push(selector.options[i].value);
+                }
+            }
+            
+            console.log('Selected files:', selectedFiles);
+            return selectedFiles;
+        }
+
+        function clearFileSelection() {
+            const selector = document.getElementById('file-selector');
+            for (let i = 0; i < selector.options.length; i++) {
+                selector.options[i].selected = false;
+            }
+            // Select the "all files" option
+            if (selector.options.length > 0) {
+                selector.options[0].selected = true;
+            }
+            updateSelectedFilesDisplay();
+        }
+
+        function updateSelectedFilesDisplay() {
+            const selectedFiles = getSelectedFiles();
+            const display = document.getElementById('selected-files-display');
+            const t = translations[currentLanguage];
+            
+            if (selectedFiles.length === 0) {
+                display.innerHTML = `<span style="color: #64748b; font-style: italic;">${t.allFilesOption}</span>`;
+            } else {
+                const tags = selectedFiles.map(file => 
+                    `<span class="selected-file-tag">${file}</span>`
+                ).join(' ');
+                display.innerHTML = `<strong>${currentLanguage === 'ar' ? 'البحث في:' : 'Searching in:'}</strong> ${tags}`;
+            }
+        }
+
+        // File upload handling
+        document.getElementById('file-input').addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const uploadStatus = document.getElementById('upload-status');
+            uploadStatus.textContent = currentLanguage === 'ar' ? 'جاري رفع الملف...' : 'Uploading...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    uploadStatus.textContent = currentLanguage === 'ar' ? 'تم رفع الملف بنجاح' : 'File uploaded successfully';
+                    uploadStatus.style.color = 'green';
+                    // Refresh the file list
+                    await loadAvailableFiles();
+                } else {
+                    uploadStatus.textContent = result.detail || (currentLanguage === 'ar' ? 'فشل في رفع الملف' : 'Upload failed');
+                    uploadStatus.style.color = 'red';
+                }
+            } catch (error) {
+                uploadStatus.textContent = currentLanguage === 'ar' ? 'خطأ في رفع الملف' : 'Upload error';
+                uploadStatus.style.color = 'red';
+            }
+            
+            // Clear the file input
+            event.target.value = '';
+        });
+
+        // Auto-resize textarea
+        document.getElementById('question-input').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Enhanced touch support for mobile
+        function addTouchFeedback() {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.95)';
+                });
+                button.addEventListener('touchend', function() {
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 100);
+                });
+            });
+        }
+
+        // Smooth scrolling enhancement
+        function scrollToBottom() {
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.scrollTo({
+                top: messagesContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            document.getElementById('question-input').focus();
+            addTouchFeedback();
+            
+            // Load available files on page load
+            await loadAvailableFiles();
+            
+            // Prevent zoom on iOS when focusing input
+            const inputs = document.querySelectorAll('input, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                });
+                input.addEventListener('blur', function() {
+                    document.querySelector('meta[name=viewport]').setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=no');
+                });
+            });
+
+            // Update file selector when language changes
+            const langButtons = document.querySelectorAll('.lang-btn');
+            langButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    setTimeout(() => updateFileSelector(), 100);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

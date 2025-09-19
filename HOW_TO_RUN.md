@@ -1,140 +1,97 @@
-# 🚀 How to Run the Military Training Chatbot
+# How to Run the Military Training Chatbot
 
-## Quick Start (3 Steps)
+## Quick Setup (3 steps)
 
-### 1. 📋 Make sure you have the environment ready
-
+### 1. Install Python packages
 ```bash
-# You should be in the project directory
-cd Smart_military_system
+pip install -r requirements.txt
 
-# Activate your Python environment (if using conda)
-conda activate pymain
-```
+## Setup Instructions
 
-### 2. 🔑 Set up your Google API Key
+1. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-**First, get your API key:**
-- Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-- Click "Create API Key"
-- Copy the key
+2. **Environment Configuration**
+   - Copy `env_example.txt` to `.env`
+   - Add your Google Gemini API key:
+     ```
+     GOOGLE_API_KEY=your_gemini_api_key_here
+     ```
 
-**Then, edit your .env file:**
+3. **Run the Application**
+   ```bash
+   python app.py
+   ```
+
+4. **Access the Application**
+   - Open your browser and go to: http://localhost:8000
+   - The application supports both Arabic and English languages
+
+## Available Documents
+- `basic_military_procedures_ar.txt` - Basic military procedures in Arabic
+- `basic_military_procedures_en.txt` - Basic military procedures in English  
+- `equipment_operation_en.txt` - Equipment operation guide in English
+- `security_protocols_ar.txt` - Security protocols in Arabic (NEW!)
+
+## Testing File Selection
+
+### Method 1: Using the Web Interface
+1. Open http://localhost:8000
+2. In the file selection dropdown, choose specific files
+3. Ask questions - responses will only use selected documents
+4. View which files were used in the "Sources" section
+
+### Method 2: Using the Test Script
 ```bash
-# Edit the .env file (use any text editor)
-notepad .env
+python test_files.py
 ```
 
-**Add your API key:**
-```
-GOOGLE_API_KEY=your_actual_api_key_here
-```
-Save and close the file.
+## New Features Usage
 
-### 3. 🎯 Initialize and Run
+### File Selection
+- **All Files**: Leave "Search in all files" selected (default)
+- **Specific Files**: Select individual documents from the dropdown
+- **Multiple Files**: Hold Ctrl/Cmd to select multiple files
+- **Clear Selection**: Click the red X button to reset
 
+### Conversation Memory
+- Ask follow-up questions like "Can you explain that in more detail?"
+- Reference previous answers: "What about the Arabic version of that?"
+- Each browser tab maintains its own conversation session
+
+### Arabic Support
+- Switch language using the toggle in the top-right
+- New Arabic security protocols document available
+- RTL (right-to-left) text support
+
+## Troubleshooting
+
+### File Selection Not Working?
+1. Check browser console for JavaScript errors
+2. Verify files are loaded: visit http://localhost:8000/files
+3. Look for backend logs showing selected files
+
+### Memory Not Working?
+- Each browser tab has its own session
+- Clear browser cache if issues persist
+- Check backend logs for session management
+
+## Testing Commands
 ```bash
-# Initialize the database with sample documents
-python setup_database.py
+# Test file endpoint
+curl http://localhost:8000/files
 
-# Launch the chatbot
-streamlit run app.py
-```
+# Test chat with specific file
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What are security protocols?","language":"en","selected_files":["security_protocols_ar.txt"],"session_id":"test"}'
+- Then access the app at http://localhost:8000
+- The frontend must be accessed through the server, not as a local file
 
-**🎉 That's it!** Your browser should open to `http://localhost:8501`
-
----
-
-## 📝 If You Get Errors
-
-### "Configuration Error: GOOGLE_API_KEY is required"
-- Make sure you edited the `.env` file
-- Check that your API key is correct (no extra spaces)
-
-### Import Errors or "Modality" Attribute Error
-```bash
-# This should already be fixed, but if you get errors, run:
-pip install google-generativeai==0.7.2 langchain-google-genai==1.0.10 --force-reinstall
-```
-
-### "No documents found to process"
-```bash
-# Run the database setup again
-python setup_database.py
-```
-
-### Port Already in Use
-```bash
-# Use a different port
-streamlit run app.py --server.port 8502
-```
-
----
-
-## 🎖️ Using the Chatbot
-
-Once running, you can:
-
-1. **Ask military training questions:**
-   - "How do I establish a defensive perimeter?"
-   - "What's the procedure for M4 rifle maintenance?"
-   - "How do I request a medical evacuation?"
-
-2. **Filter by category:**
-   - Use the sidebar to select specific training areas
-   - Choose from Tactical, Equipment, Emergency, etc.
-
-3. **Upload documents:**
-   - Add new training materials via the sidebar
-   - Supports PDF, Word, and text files
-
-4. **View sources:**
-   - Each answer shows which documents it came from
-   - Check the expandable "Sources" section
-
----
-
-## 🔧 Troubleshooting
-
-### App won't start
-1. Check Python environment is activated
-2. Ensure all packages are installed: `pip list | grep streamlit`
-3. Try: `python -c "import streamlit; print('Streamlit OK')"`
-
-### No responses from chatbot
-1. Verify your API key is correct
-2. Check internet connection
-3. Try the "Run Diagnostics" button in the app
-
-### Slow responses
-1. Reduce "Number of sources to retrieve" in sidebar
-2. Check your internet connection
-3. Try with shorter questions
-
----
-
-## 🏃‍♂️ Quick Test
-
-Run this to verify everything works:
-
-```bash
-python -c "
-from config.settings import config
-config.validate_config()
-print('✅ Configuration OK')
-"
-```
-
-If you see "✅ Configuration OK", you're ready to go!
-
----
-
-## 📱 Access from Other Devices
-
-The app also runs on your local network:
-- Check the terminal output for "Network URL"
-- Use that URL from other devices on the same WiFi
-
----
-
-**Need help?** Check the `README.md` for detailed documentation or `SIMPLE_INSTALL.md` for installation troubleshooting.
+**Problem**: "Failed to fetch" errors
+**Solution**: 
+- Ensure the FastAPI server is running (`python app.py`)
+- Check that you can access http://localhost:8000 in your browser
+- Restart the server if needed
