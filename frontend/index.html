@@ -831,14 +831,6 @@
                 <span id="loading-text">Processing your question...</span>
             </div>
 
-            <div class="upload-area" id="upload-area">
-                <input type="file" id="file-input" accept=".pdf,.txt" style="display: none;">
-                <button class="upload-btn" onclick="document.getElementById('file-input').click()">
-                    <span id="upload-btn-text">Upload Document</span>
-                </button>
-                <span id="upload-status"></span>
-            </div>
-
             <div class="input-area">
                 <!-- File Selection Section -->
                 <div class="file-selection" id="file-selection">
@@ -866,11 +858,6 @@
                     ></textarea>
                     <button id="send-btn" class="send-btn" onclick="sendMessage()">
                         <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-                <div style="margin-top: 12px; text-align: center;">
-                    <button style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 13px; padding: 8px 12px; border-radius: 6px; transition: all 0.2s ease; font-weight: 500;" onclick="toggleUpload()" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.color='#3b82f6'" onmouseout="this.style.background='none'; this.style.color='#64748b'">
-                        <span id="toggle-upload-text">📎 Upload Documents</span>
                     </button>
                 </div>
             </div>
