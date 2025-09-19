@@ -33,9 +33,9 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 import google.generativeai as genai
-from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.docstore.document import Document
 from langchain.memory import ConversationBufferWindowMemory
@@ -124,7 +124,7 @@ class HealthResponse(BaseModel):
 
 # Global variables for RAG system
 vectorstore: Optional[Chroma] = None
-embeddings: Optional[SentenceTransformerEmbeddings] = None
+embeddings: Optional[HuggingFaceEmbeddings] = None
 text_splitter: Optional[RecursiveCharacterTextSplitter] = None
 
 # Conversation memory for each session
@@ -219,7 +219,7 @@ async def initialize_rag_system():
     try:
         # Initialize multilingual embeddings
         logger.info("Loading multilingual embeddings...")
-        embeddings = SentenceTransformerEmbeddings(
+        embeddings = HuggingFaceEmbeddings(
             model_name="paraphrase-multilingual-MiniLM-L12-v2"
         )
         
@@ -230,12 +230,12 @@ async def initialize_rag_system():
             length_function=len,
         )
         
-        # Initialize Chroma vectorstore with absolute path for deployment reliability
+        # Initialize Chroma vectorstore with string path (ChromaDB requirement)
         persist_directory = Path("database/chroma_db").resolve()
         persist_directory.mkdir(parents=True, exist_ok=True)
         
         vectorstore = Chroma(
-            persist_directory=persist_directory,
+            persist_directory=str(persist_directory),  # Convert Path to string for ChromaDB
             embedding_function=embeddings,
             collection_name="military_training"
         )
