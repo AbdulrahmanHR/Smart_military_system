@@ -9,7 +9,7 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
     volumes:
       - ./uploads:/app/uploads
-      - ./chroma_db:/app/chroma_db
+      - ./database:/app/database
       - ./documents:/app/documents
     restart: unless-stopped
     healthcheck:

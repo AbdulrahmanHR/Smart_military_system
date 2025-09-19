@@ -78,6 +78,9 @@ chroma_db/
 # documents/*.txt
 # documents/*.docx
 
+# Upload directory for user uploads
+uploads/
+
 # Node modules (if any frontend build tools are added)
 node_modules/
 npm-debug.log*

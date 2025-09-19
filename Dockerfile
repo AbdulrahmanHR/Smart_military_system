@@ -25,8 +25,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
-# Create directories for uploads and database
-RUN mkdir -p uploads chroma_db
+# Create directories for uploads, documents, and database
+RUN mkdir -p uploads documents database/chroma_db
 
 # Expose port
 EXPOSE 8000

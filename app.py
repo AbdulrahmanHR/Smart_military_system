@@ -4,12 +4,20 @@ Supporting both Arabic and English languages with RAG system
 """
 
 import os
+import sys
 import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import logging
 from datetime import datetime
 from contextlib import asynccontextmanager
+
+# Fix SQLite compatibility for ChromaDB (required for some deployment environments)
+try:
+    import pysqlite3
+    sys.modules['sqlite3'] = pysqlite3
+except ImportError:
+    pass
 
 # Load environment variables from .env file if it exists
 try:
@@ -36,8 +44,16 @@ import pyarabic.araby as araby
 import chromadb
 from sentence_transformers import SentenceTransformer
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging for production deployment
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # Console output
+        logging.FileHandler('app.log', encoding='utf-8') if os.getenv("LOG_TO_FILE", "false").lower() == "true" else logging.NullHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -69,9 +85,17 @@ app = FastAPI(
 )
 
 # CORS middleware for frontend access
+# Get allowed origins from environment variable or allow same origin only
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+else:
+    # If no specific origins set, allow same origin only (secure default for any deployment)
+    allowed_origins = ["*"]  # FastAPI serves frontend from same origin, so this is safe
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for local development
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -206,9 +230,9 @@ async def initialize_rag_system():
             length_function=len,
         )
         
-        # Initialize Chroma vectorstore
-        persist_directory = "database/chroma_db"
-        os.makedirs(persist_directory, exist_ok=True)
+        # Initialize Chroma vectorstore with absolute path for deployment reliability
+        persist_directory = Path("database/chroma_db").resolve()
+        persist_directory.mkdir(parents=True, exist_ok=True)
         
         vectorstore = Chroma(
             persist_directory=persist_directory,

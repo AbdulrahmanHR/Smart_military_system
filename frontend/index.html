@@ -882,6 +882,9 @@
         let sessionId = 'user_' + Math.random().toString(36).substr(2, 9); // Generate unique session ID
         let availableFiles = [];
         
+        // Get the base URL dynamically (works for both local and server deployment)
+        const API_BASE_URL = window.location.origin;
+        
         const translations = {
             en: {
                 title: "Military Training Assistant",
@@ -1073,7 +1076,7 @@
             
             try {
                 const selectedFiles = getSelectedFiles();
-                const response = await fetch('http://localhost:8000/chat', {
+                const response = await fetch(`${API_BASE_URL}/chat`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1117,7 +1120,7 @@
         // File selection functions
         async function loadAvailableFiles() {
             try {
-                const response = await fetch('http://localhost:8000/files');
+                const response = await fetch(`${API_BASE_URL}/files`);
                 const data = await response.json();
                 availableFiles = data.files || [];
                 updateFileSelector();
@@ -1216,7 +1219,7 @@
             uploadStatus.textContent = currentLanguage === 'ar' ? 'جاري رفع الملف...' : 'Uploading...';
             
             try {
-                const response = await fetch('http://localhost:8000/upload', {
+                const response = await fetch(`${API_BASE_URL}/upload`, {
                     method: 'POST',
                     body: formData
                 });
